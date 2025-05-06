@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <title>Редагувати обслуговування</title>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <div class="header">
+        <h1>Редагувати обслуговування</h1>
+        <a href="/details" class="corner-link">Повернутися до деталей</a>
+    </div>
+    <form method="POST" action="/edit_maintenance/{{ maintenance['id'] }}">
+        <label>Дата:</label><br>
+        <input type="date" name="maintenance_date" value="{{ maintenance['date'] }}" required><br>
+        <label>Тип обслуговування:</label><br>
+        <input type="text" name="type" value="{{ maintenance['type'] }}" required><br>
+        <label>Що виконано:</label><br>
+        <input type="text" name="performed" value="{{ maintenance['performed'] }}" required><br>
+        <label>Хто виконав:</label><br>
+        <input type="text" name="performed_by" value="{{ maintenance['performed_by'] }}" required><br>
+        <label>Коментарі:</label><br>
+        <textarea name="maintenance_comments" rows="4">{{ maintenance['comments'] }}</textarea><br><br>
+        <button type="submit">Зберегти</button>
+    </form>
+</body>
+</html>

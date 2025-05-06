@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <title>Облік АРМ у військовій частині</title>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <div class="header">
+        <h1>Облік АРМ у військовій частині</h1>
+    </div>
+    <form method="POST" action="/search" class="search-form">
+        <input type="text" name="search_term" placeholder=" ">
+        <button type="submit"><span style="font-size: 16px;">🔍</span></button>
+        <a href="/add" class="add-button">Додати АРМ</a>
+    </form>
+    <table border="1">
+        <thead>
+            <tr>
+                <th>Інвентарний номер</th>
+                <th>IP-адреса</th>
+                <th>MAC-адреса</th>
+                <th>Рівень доступу</th>
+                <th>Підрозділ</th>
+                <th>ПІБ та Посада</th>
+                <th>Контакти</th>
+                <th>Локація</th>
+                <th>Примітки</th>
+                <th>Дії</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for workplace in workplaces %}
+            <tr>
+                <td>{{ workplace['inventory_number'] }}</td>
+                <td>{{ workplace['ip_address'] }}</td>
+                <td>{{ workplace['mac_address'] }}</td>
+                <td>{{ workplace['access_level'] }}</td>
+                <td>{{ workplace['unit'] }}</td>
+                <td>{{ workplace['person'] }}</td>
+                <td>{{ workplace['contacts'] }}</td>
+                <td>{{ workplace['location'] if workplace['location'] else '' }}</td>
+                <td>{{ workplace['notes'][:20] if workplace['notes'] else '' }}</td>
+                <td>
+                    <div class="action-links">
+                        <a href="/edit/{{ workplace['rowid'] }}">Редагувати</a> |
+                        <a href="/delete/{{ workplace['rowid'] }}">Видалити</a>
+                        <a href="/details" class="action-dots">⋮</a>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+</html>

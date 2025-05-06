@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <title>Додати АРМ</title>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <div class="header">
+        <h1>Додати АРМ</h1>
+        <a href="/" class="corner-link">Повернутися до списку</a>
+    </div>
+    <form method="POST" action="/add">
+        <label>Інвентарний номер:</label><br>
+        <input type="text" name="inventory_number" required><br>
+        <label>IP-адреса:</label><br>
+        <input type="text" name="ip_address" required><br>
+        <label>MAC-адреса:</label><br>
+        <input type="text" name="mac_address" required><br>
+        <label>Рівень доступу:</label><br>
+        <input type="text" name="access_level" required><br>
+        <label>Підрозділ:</label><br>
+        <input type="text" name="unit" required><br>
+        <label>ПІБ та Посада:</label><br>
+        <input type="text" name="person" required><br>
+        <label>Контакти:</label><br>
+        <input type="text" name="contacts" required><br>
+        <label>Локація:</label><br>
+        <input type="text" name="location"><br>
+        <label>Примітки:</label><br>
+        <textarea name="notes" rows="4"></textarea><br><br>
+        <button type="submit">Додати</button>
+    </form>
+</body>
+</html>

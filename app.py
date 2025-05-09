@@ -1,5 +1,6 @@
 import sqlite3
 from flask import Flask, render_template, request, redirect, url_for
+import uuid
 
 app = Flask(__name__)
 
@@ -13,7 +14,7 @@ def init_db():
     cursor = conn.cursor()
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS workplaces (
-            inventory_number TEXT,
+            inventory_number TEXT UNIQUE,
             ip_address TEXT,
             mac_address TEXT,
             access_level TEXT,
@@ -53,15 +54,41 @@ init_db()
 def index():
     conn = get_db_connection()
     cursor = conn.cursor()
+    
+    # Список АРМ
     cursor.execute('SELECT rowid, * FROM workplaces')
     workplaces = cursor.fetchall()
+    
+    # Підрахунок статистики
+    cursor.execute('SELECT COUNT(*) FROM workplaces')
+    total_workplaces = cursor.fetchone()[0] or 0
+    
+    cursor.execute('SELECT COUNT(*) FROM software')
+    total_software = cursor.fetchone()[0] or 0
+    
+    cursor.execute('SELECT COUNT(*) FROM maintenance')
+    total_maintenance = cursor.fetchone()[0] or 0
+    
+    # Розподіл за підрозділами для графіку
+    cursor.execute('SELECT unit, COUNT(*) as count FROM workplaces GROUP BY unit')
+    unit_distribution = cursor.fetchall()
+    units = [row['unit'] for row in unit_distribution if row['unit']] or ['Немає даних']
+    unit_counts = [row['count'] for row in unit_distribution if row['unit']] or [0]
+    
     conn.close()
-    return render_template('index.html', workplaces=workplaces)
+    
+    return render_template('index.html', workplaces=workplaces, 
+                         total_workplaces=total_workplaces, 
+                         total_software=total_software, 
+                         total_maintenance=total_maintenance,
+                         units=units, unit_counts=unit_counts)
+
+# Решта коду залишається без змін (add, edit, delete, add_software, edit_software, delete_software, add_maintenance, edit_maintenance, delete_maintenance, details, search)
 
 @app.route('/add', methods=['GET', 'POST'])
 def add_workplace():
     if request.method == 'POST':
-        inventory_number = request.form['inventory_number']
+        inventory_number = str(uuid.uuid4())
         ip_address = request.form['ip_address']
         mac_address = request.form['mac_address']
         access_level = request.form['access_level']
@@ -70,7 +97,6 @@ def add_workplace():
         contacts = request.form['contacts']
         notes = request.form['notes']
         location = request.form['location']
-
         conn = get_db_connection()
         cursor = conn.cursor()
         cursor.execute('''
@@ -78,7 +104,6 @@ def add_workplace():
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (inventory_number, ip_address, mac_address, access_level, unit, person, contacts, notes, location))
         conn.commit()
-        rowid = cursor.lastrowid
         conn.close()
         return redirect(url_for('index'))
     return render_template('add.html')
@@ -88,7 +113,6 @@ def edit_workplace(rowid):
     conn = get_db_connection()
     cursor = conn.cursor()
     if request.method == 'POST':
-        inventory_number = request.form['inventory_number']
         ip_address = request.form['ip_address']
         mac_address = request.form['mac_address']
         access_level = request.form['access_level']
@@ -98,9 +122,9 @@ def edit_workplace(rowid):
         notes = request.form['notes']
         location = request.form['location']
         cursor.execute('''
-            UPDATE workplaces SET inventory_number = ?, ip_address = ?, mac_address = ?, access_level = ?, unit = ?, person = ?, contacts = ?, notes = ?, location = ?
+            UPDATE workplaces SET ip_address = ?, mac_address = ?, access_level = ?, unit = ?, person = ?, contacts = ?, notes = ?, location = ?
             WHERE rowid = ?
-        ''', (inventory_number, ip_address, mac_address, access_level, unit, person, contacts, notes, location, rowid))
+        ''', (ip_address, mac_address, access_level, unit, person, contacts, notes, location, rowid))
         conn.commit()
         conn.close()
         return redirect(url_for('index'))
@@ -242,8 +266,8 @@ def search():
     search_term = request.form['search_term']
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute('SELECT rowid, * FROM workplaces WHERE ip_address LIKE ? OR mac_address LIKE ? OR person LIKE ?', 
-                   ('%' + search_term + '%', '%' + search_term + '%', '%' + search_term + '%'))
+    cursor.execute('SELECT rowid, * FROM workplaces WHERE inventory_number LIKE ? OR ip_address LIKE ? OR mac_address LIKE ? OR person LIKE ?', 
+                   ('%' + search_term + '%', '%' + search_term + '%', '%' + search_term + '%', '%' + search_term + '%'))
     workplaces = cursor.fetchall()
     conn.close()
     return render_template('index.html', workplaces=workplaces)

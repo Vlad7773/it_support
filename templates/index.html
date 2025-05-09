@@ -3,54 +3,131 @@
 <head>
     <title>Облік АРМ у військовій частині</title>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body>
-    <div class="header">
-        <h1>Облік АРМ у військовій частині</h1>
-    </div>
-    <form method="POST" action="/search" class="search-form">
-        <input type="text" name="search_term" placeholder=" ">
-        <button type="submit"><span style="font-size: 16px;">🔍</span></button>
-        <a href="/add" class="add-button">Додати АРМ</a>
-    </form>
-    <table border="1">
-        <thead>
-            <tr>
-                <th>Інвентарний номер</th>
-                <th>IP-адреса</th>
-                <th>MAC-адреса</th>
-                <th>Рівень доступу</th>
-                <th>Підрозділ</th>
-                <th>ПІБ та Посада</th>
-                <th>Контакти</th>
-                <th>Локація</th>
-                <th>Примітки</th>
-                <th>Дії</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for workplace in workplaces %}
-            <tr>
-                <td>{{ workplace['inventory_number'] }}</td>
-                <td>{{ workplace['ip_address'] }}</td>
-                <td>{{ workplace['mac_address'] }}</td>
-                <td>{{ workplace['access_level'] }}</td>
-                <td>{{ workplace['unit'] }}</td>
-                <td>{{ workplace['person'] }}</td>
-                <td>{{ workplace['contacts'] }}</td>
-                <td>{{ workplace['location'] if workplace['location'] else '' }}</td>
-                <td>{{ workplace['notes'][:20] if workplace['notes'] else '' }}</td>
-                <td>
-                    <div class="action-links">
-                        <a href="/edit/{{ workplace['rowid'] }}">Редагувати</a> |
-                        <a href="/delete/{{ workplace['rowid'] }}">Видалити</a>
-                        <a href="/details" class="action-dots">⋮</a>
+    <div class="container">
+        <!-- Бічна панель -->
+        <div class="sidebar">
+            <h2>Облік АРМ</h2>
+            <a href="/"><i class="fas fa-desktop"></i> АРМ</a>
+            <a href="/details#software"><i class="fas fa-cogs"></i> Встановлене ПЗ</a>
+            <a href="/details#maintenance"><i class="fas fa-tools"></i> Обслуговування</a>
+            <a href="/add"><i class="fas fa-plus"></i> Додати АРМ</a>
+        </div>
+
+        <!-- Основний контент -->
+        <div class="main-content">
+            <!-- Статистика -->
+            <div class="stats-section">
+                <div class="chart-container">
+                    <canvas id="unitChart"></canvas>
+                    <div class="chart-legend">
+                        {% for unit in units %}
+                        <div><span class="legend-color legend-color-{{ loop.index0 }}"></span> {{ unit }}</div>
+                        {% endfor %}
                     </div>
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+                </div>
+                <div class="stats-cards">
+                    <div class="card red">
+                        <h3>Кількість АРМ</h3>
+                        <p>{{ total_workplaces }}</p>
+                    </div>
+                    <div class="card blue">
+                        <h3>Кількість ПЗ</h3>
+                        <p>{{ total_software }}</p>
+                    </div>
+                    <div class="card orange">
+                        <h3>Обслуговувань</h3>
+                        <p>{{ total_maintenance }}</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Пошук і таблиця -->
+            <div class="header">
+                <h1>Список АРМ</h1>
+            </div>
+            <form method="POST" action="/search" class="search-form">
+                <input type="text" name="search_term" placeholder="Пошук за інв. номером, IP, ПІБ...">
+                <button type="submit"><i class="fas fa-search"></i></button>
+                <a href="/add" class="add-button">Додати АРМ</a>
+            </form>
+            <table border="1">
+                <thead>
+                    <tr>
+                        <th>Інвентарний номер</th>
+                        <th>IP-адреса</th>
+                        <th>MAC-адреса</th>
+                        <th>Рівень доступу</th>
+                        <th>Підрозділ</th>
+                        <th>ПІБ та Посада</th>
+                        <th>Контакти</th>
+                        <th>Локація</th>
+                        <th>Примітки</th>
+                        <th>Дії</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for workplace in workplaces %}
+                    <tr>
+                        <td>{{ workplace['inventory_number'] }}</td>
+                        <td>{{ workplace['ip_address'] }}</td>
+                        <td>{{ workplace['mac_address'] }}</td>
+                        <td>{{ workplace['access_level'] }}</td>
+                        <td>{{ workplace['unit'] }}</td>
+                        <td>{{ workplace['person'] }}</td>
+                        <td>{{ workplace['contacts'] }}</td>
+                        <td>{{ workplace['location'] if workplace['location'] else '' }}</td>
+                        <td>{{ workplace['notes'][:20] if workplace['notes'] else '' }}</td>
+                        <td>
+                            <div class="action-links">
+                                <a href="/edit/{{ workplace['rowid'] }}">Редагувати</a> |
+                                <a href="/delete/{{ workplace['rowid'] }}">Видалити</a>
+                                <a href="/details#software" title="Встановлене ПЗ"><i class="fas fa-cogs"></i></a>
+                                <a href="/details#maintenance" title="Оновлення"><i class="fas fa-tools"></i></a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Скрипт для графіку -->
+    <script>
+        // Отримуємо дані від Flask
+        const units = {{ units | tojson | safe }};
+        const unitCounts = {{ unit_counts | tojson | safe }};
+
+        // Ініціалізація графіку з захистом від порожніх даних
+        const ctx = document.getElementById('unitChart').getContext('2d');
+        if (units.length > 0 && unitCounts.length > 0) {
+            new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: units,
+                    datasets: [{
+                        data: unitCounts,
+                        backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0'],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    }
+                }
+            });
+        } else {
+            console.log('Немає даних для графіку');
+        }
+    </script>
 </body>
 </html>

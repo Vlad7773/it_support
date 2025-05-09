@@ -1,99 +1,75 @@
-<!DOCTYPE html>
-<html lang="uk">
-<head>
-    <title>Деталі АРМ</title>
-    <meta charset="UTF-8">
-    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
-</head>
-<body>
+{% extends "base.html" %}
+{% block title %}Деталі{% endblock %}
+{% block content %}
     <div class="header">
-        <h1>Деталі АРМ</h1>
-        <a href="/" class="corner-link">Повернутися до списку</a>
+        <h1>Деталі</h1>
     </div>
 
     <div class="section">
-        <h2 onclick="toggleSection('software')">Встановлене ПЗ</h2>
-        <div id="software" class="hidden">
-            <a href="/add_software" class="add-button">Додати ПЗ</a>
-            <table border="1">
-                <thead>
-                    <tr>
-                        <th>Дата</th>
-                        <th>Назва ПЗ</th>
-                        <th>Версія</th>
-                        <th>Ключ</th>
-                        <th>Коментарі</th>
-                        <th>Дії</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for record in software_records %}
-                    <tr>
-                        <td>{{ record['date'] }}</td>
-                        <td>{{ record['software_name'] }}</td>
-                        <td>{{ record['version'] }}</td>
-                        <td>{{ record['license_key'] if record['license_key'] else '' }}</td>
-                        <td>{{ record['comments'] if record['comments'] else '' }}</td>
-                        <td>
-                            <div class="action-links">
-                                <a href="/edit_software/{{ record['id'] }}">Редагувати</a> |
-                                <a href="/delete_software/{{ record['id'] }}">Видалити</a>
-                            </div>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
+        <h2 id="software">Встановлене ПЗ</h2>
+        <a href="/add_software" class="add-button">Додати ПЗ</a>
+        <table border="1">
+            <thead>
+                <tr>
+                    <th>Дата</th>
+                    <th>Назва ПЗ</th>
+                    <th>Версія</th>
+                    <th>Ліцензійний ключ</th>
+                    <th>Коментарі</th>
+                    <th>Дії</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for software in software_records %}
+                <tr>
+                    <td>{{ software['date'] }}</td>
+                    <td>{{ software['software_name'] }}</td>
+                    <td>{{ software['version'] }}</td>
+                    <td>{{ software['license_key'] }}</td>
+                    <td>{{ software['comments'] }}</td>
+                    <td>
+                        <div class="action-links">
+                            <a href="/edit_software/{{ software['id'] }}">Редагувати</a> |
+                            <a href="/delete_software/{{ software['id'] }}" onclick="return confirm('Точно видалити?')">Видалити</a>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
     </div>
 
     <div class="section">
-        <h2 onclick="toggleSection('maintenance')">Обслуговування</h2>
-        <div id="maintenance" class="hidden">
-            <a href="/add_maintenance" class="add-button">Додати обслуговування</a>
-            <table border="1">
-                <thead>
-                    <tr>
-                        <th>Дата</th>
-                        <th>Тип</th>
-                        <th>Що виконано</th>
-                        <th>Хто виконав</th>
-                        <th>Коментарі</th>
-                        <th>Дії</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for record in maintenance_records %}
-                    <tr>
-                        <td>{{ record['date'] }}</td>
-                        <td>{{ record['type'] }}</td>
-                        <td>{{ record['performed'] }}</td>
-                        <td>{{ record['performed_by'] }}</td>
-                        <td>{{ record['comments'] if record['comments'] else '' }}</td>
-                        <td>
-                            <div class="action-links">
-                                <a href="/edit_maintenance/{{ record['id'] }}">Редагувати</a> |
-                                <a href="/delete_maintenance/{{ record['id'] }}">Видалити</a>
-                            </div>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
+        <h2 id="maintenance">Обслуговування</h2>
+        <a href="/add_maintenance" class="add-button">Додати Обслуговування</a>
+        <table border="1">
+            <thead>
+                <tr>
+                    <th>Дата</th>
+                    <th>Тип</th>
+                    <th>Виконане</th>
+                    <th>Виконав</th>
+                    <th>Коментарі</th>
+                    <th>Дії</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for maintenance in maintenance_records %}
+                <tr>
+                    <td>{{ maintenance['date'] }}</td>
+                    <td>{{ maintenance['type'] }}</td>
+                    <td>{{ maintenance['performed'] }}</td>
+                    <td>{{ maintenance['performed_by'] }}</td>
+                    <td>{{ maintenance['comments'] }}</td>
+                    <td>
+                        <div class="action-links">
+                            <a href="/edit_maintenance/{{ maintenance['id'] }}">Редагувати</a> |
+                            <a href="/delete_maintenance/{{ maintenance['id'] }}" onclick="return confirm('Точно видалити?')">Видалити</a>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
     </div>
-
-    <script>
-        function toggleSection(sectionId) {
-            var section = document.getElementById(sectionId);
-            if (section.classList.contains('hidden')) {
-                section.classList.remove('hidden');
-                section.classList.add('show');
-            } else {
-                section.classList.remove('show');
-                section.classList.add('hidden');
-            }
-        }
-    </script>
-</body>
-</html>
+{% endblock %}

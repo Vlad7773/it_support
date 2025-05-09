@@ -1,27 +1,15 @@
-<!DOCTYPE html>
-<html lang="uk">
-<head>
-    <title>Редагувати ПЗ</title>
-    <meta charset="UTF-8">
-    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
-</head>
-<body>
+{% extends "base.html" %}
+{% block title %}Редагувати ПЗ{% endblock %}
+{% block content %}
     <div class="header">
         <h1>Редагувати ПЗ</h1>
-        <a href="/details" class="corner-link">Повернутися до деталей</a>
     </div>
     <form method="POST" action="/edit_software/{{ software['id'] }}">
-        <label>Дата:</label><br>
-        <input type="date" name="software_date" value="{{ software['date'] }}" required><br>
-        <label>Назва ПЗ:</label><br>
-        <input type="text" name="software_name" value="{{ software['software_name'] }}" required><br>
-        <label>Версія:</label><br>
-        <input type="text" name="version" value="{{ software['version'] }}" required><br>
-        <label>Ключ (необов’язково):</label><br>
-        <input type="text" name="license_key" value="{{ software['license_key'] }}"><br>
-        <label>Коментарі:</label><br>
-        <textarea name="software_comments" rows="4">{{ software['comments'] }}</textarea><br><br>
+        <label>Дата:</label><input type="text" name="software_date" value="{{ software['date'] }}" required><br>
+        <label>Назва ПЗ:</label><input type="text" name="software_name" value="{{ software['software_name'] }}" required><br>
+        <label>Версія:</label><input type="text" name="version" value="{{ software['version'] }}" required><br>
+        <label>Ліцензійний ключ:</label><input type="text" name="license_key" value="{{ software['license_key'] }}"><br>
+        <label>Коментарі:</label><input type="text" name="software_comments" value="{{ software['comments'] }}"><br>
         <button type="submit">Зберегти</button>
     </form>
-</body>
-</html>
+{% endblock %}

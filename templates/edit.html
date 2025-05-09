@@ -1,35 +1,18 @@
-<!DOCTYPE html>
-<html lang="uk">
-<head>
-    <title>Редагувати АРМ</title>
-    <meta charset="UTF-8">
-    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
-</head>
-<body>
+{% extends "base.html" %}
+{% block title %}Редагувати АРМ{% endblock %}
+{% block content %}
     <div class="header">
         <h1>Редагувати АРМ</h1>
-        <a href="/" class="corner-link">Повернутися до списку</a>
     </div>
     <form method="POST" action="/edit/{{ rowid }}">
-        <label>Інвентарний номер:</label><br>
-        <input type="text" name="inventory_number" value="{{ workplace['inventory_number'] }}" required><br>
-        <label>IP-адреса:</label><br>
-        <input type="text" name="ip_address" value="{{ workplace['ip_address'] }}" required><br>
-        <label>MAC-адреса:</label><br>
-        <input type="text" name="mac_address" value="{{ workplace['mac_address'] }}" required><br>
-        <label>Рівень доступу:</label><br>
-        <input type="text" name="access_level" value="{{ workplace['access_level'] }}" required><br>
-        <label>Підрозділ:</label><br>
-        <input type="text" name="unit" value="{{ workplace['unit'] }}" required><br>
-        <label>ПІБ та Посада:</label><br>
-        <input type="text" name="person" value="{{ workplace['person'] }}" required><br>
-        <label>Контакти:</label><br>
-        <input type="text" name="contacts" value="{{ workplace['contacts'] }}" required><br>
-        <label>Локація:</label><br>
-        <input type="text" name="location" value="{{ workplace['location'] }}"><br>
-        <label>Примітки:</label><br>
-        <textarea name="notes" rows="4">{{ workplace['notes'] }}</textarea><br><br>
+        <label>IP-адреса:</label><input type="text" name="ip_address" value="{{ workplace['ip_address'] }}" required><br>
+        <label>MAC-адреса:</label><input type="text" name="mac_address" value="{{ workplace['mac_address'] }}" required><br>
+        <label>Рівень доступу:</label><input type="text" name="access_level" value="{{ workplace['access_level'] }}" required><br>
+        <label>Підрозділ:</label><input type="text" name="unit" value="{{ workplace['unit'] }}" required><br>
+        <label>ПІБ та Посада:</label><input type="text" name="person" value="{{ workplace['person'] }}" required><br>
+        <label>Контакти:</label><input type="text" name="contacts" value="{{ workplace['contacts'] }}" required><br>
+        <label>Примітки:</label><input type="text" name="notes" value="{{ workplace['notes'] }}"><br>
+        <label>Локація:</label><input type="text" name="location" value="{{ workplace['location'] }}"><br>
         <button type="submit">Зберегти</button>
     </form>
-</body>
-</html>
+{% endblock %}

@@ -23,13 +23,13 @@ def init_db():
                 unit TEXT,
                 person TEXT,
                 contacts TEXT,
-                notes TEXT,
-                location TEXT
+                notes TEXT
             )
         ''')
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS software (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
+                inventory_number TEXT,
                 date TEXT,
                 software_name TEXT,
                 version TEXT,
@@ -40,6 +40,7 @@ def init_db():
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS maintenance (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
+                inventory_number TEXT,
                 date TEXT,
                 type TEXT,
                 performed TEXT,
@@ -66,14 +67,30 @@ def get_all_workplaces():
     finally:
         conn.close()
 
+def get_inventory_numbers():
+    """Отримує всі інвентарні номери з таблиці workplaces."""
+    conn = get_db_connection()
+    try:
+        cursor = conn.cursor()
+        cursor.execute('SELECT inventory_number FROM workplaces')
+        return [row['inventory_number'] for row in cursor.fetchall()]
+    except sqlite3.Error as e:
+        raise Exception(f"Помилка отримання інвентарних номерів: {e}")
+    finally:
+        conn.close()
+
 def add_workplace(data):
     """Додає новий запис до таблиці workplaces."""
     conn = get_db_connection()
     try:
         cursor = conn.cursor()
+        # Перевіряємо, чи існує інвентарний номер
+        cursor.execute('SELECT inventory_number FROM workplaces WHERE inventory_number = ?', (data[0],))
+        if cursor.fetchone():
+            raise Exception(f"Інвентарний номер {data[0]} вже існує!")
         cursor.execute('''
-            INSERT INTO workplaces (inventory_number, ip_address, mac_address, access_level, unit, person, contacts, notes, location)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO workplaces (inventory_number, ip_address, mac_address, access_level, unit, person, contacts, notes)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         ''', data)
         conn.commit()
     except sqlite3.Error as e:
@@ -99,7 +116,7 @@ def update_workplace(rowid, data):
     try:
         cursor = conn.cursor()
         cursor.execute('''
-            UPDATE workplaces SET ip_address = ?, mac_address = ?, access_level = ?, unit = ?, person = ?, contacts = ?, notes = ?, location = ?
+            UPDATE workplaces SET ip_address = ?, mac_address = ?, access_level = ?, unit = ?, person = ?, contacts = ?, notes = ?
             WHERE rowid = ?
         ''', (*data, rowid))
         conn.commit()
@@ -134,12 +151,30 @@ def search_workplaces(search_term):
         conn.close()
 
 # Функції для роботи з таблицею software
-def get_all_software():
-    """Отримує всі записи з таблиці software."""
+def get_all_software(sort_by_date='desc', search_term_inventory=None, search_term_name=None):
+    """Отримує всі записи з таблиці software з можливістю сортування та пошуку."""
     conn = get_db_connection()
     try:
         cursor = conn.cursor()
-        cursor.execute('SELECT * FROM software')
+        query = 'SELECT * FROM software'
+        params = []
+        
+        # Додаємо умови пошуку
+        conditions = []
+        if search_term_inventory:
+            conditions.append('inventory_number LIKE ?')
+            params.append('%' + search_term_inventory + '%')
+        if search_term_name:
+            conditions.append('software_name LIKE ?')
+            params.append('%' + search_term_name + '%')
+        
+        if conditions:
+            query += ' WHERE ' + ' AND '.join(conditions)
+        
+        # Додаємо сортування
+        query += ' ORDER BY date ' + ('DESC' if sort_by_date == 'desc' else 'ASC')
+        
+        cursor.execute(query, params)
         return cursor.fetchall()
     except sqlite3.Error as e:
         raise Exception(f"Помилка отримання даних ПЗ: {e}")
@@ -152,8 +187,8 @@ def add_software(data):
     try:
         cursor = conn.cursor()
         cursor.execute('''
-            INSERT INTO software (date, software_name, version, license_key, comments)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO software (inventory_number, date, software_name, version, license_key, comments)
+            VALUES (?, ?, ?, ?, ?, ?)
         ''', data)
         conn.commit()
     except sqlite3.Error as e:
@@ -179,7 +214,7 @@ def update_software(software_id, data):
     try:
         cursor = conn.cursor()
         cursor.execute('''
-            UPDATE software SET date = ?, software_name = ?, version = ?, license_key = ?, comments = ?
+            UPDATE software SET inventory_number = ?, date = ?, software_name = ?, version = ?, license_key = ?, comments = ?
             WHERE id = ?
         ''', (*data, software_id))
         conn.commit()
@@ -201,12 +236,23 @@ def delete_software(software_id):
         conn.close()
 
 # Функції для роботи з таблицею maintenance
-def get_all_maintenance():
-    """Отримує всі записи з таблиці maintenance."""
+def get_all_maintenance(sort_by_date='desc', search_term_inventory=None):
+    """Отримує всі записи з таблиці maintenance з можливістю сортування та пошуку."""
     conn = get_db_connection()
     try:
         cursor = conn.cursor()
-        cursor.execute('SELECT * FROM maintenance')
+        query = 'SELECT * FROM maintenance'
+        params = []
+        
+        # Додаємо умови пошуку
+        if search_term_inventory:
+            query += ' WHERE inventory_number LIKE ?'
+            params.append('%' + search_term_inventory + '%')
+        
+        # Додаємо сортування
+        query += ' ORDER BY date ' + ('DESC' if sort_by_date == 'desc' else 'ASC')
+        
+        cursor.execute(query, params)
         return cursor.fetchall()
     except sqlite3.Error as e:
         raise Exception(f"Помилка отримання даних обслуговування: {e}")
@@ -219,8 +265,8 @@ def add_maintenance(data):
     try:
         cursor = conn.cursor()
         cursor.execute('''
-            INSERT INTO maintenance (date, type, performed, performed_by, comments)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO maintenance (inventory_number, date, type, performed, performed_by, comments)
+            VALUES (?, ?, ?, ?, ?, ?)
         ''', data)
         conn.commit()
     except sqlite3.Error as e:
@@ -246,7 +292,7 @@ def update_maintenance(maintenance_id, data):
     try:
         cursor = conn.cursor()
         cursor.execute('''
-            UPDATE maintenance SET date = ?, type = ?, performed = ?, performed_by = ?, comments = ?
+            UPDATE maintenance SET inventory_number = ?, date = ?, type = ?, performed = ?, performed_by = ?, comments = ?
             WHERE id = ?
         ''', (*data, maintenance_id))
         conn.commit()

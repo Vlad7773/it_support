@@ -4,12 +4,41 @@
     <div class="header">
         <h1>Редагувати ПЗ</h1>
     </div>
-    <form method="POST" action="/edit_software/{{ software['id'] }}">
-        <label>Дата:</label><input type="text" name="software_date" value="{{ software['date'] }}" required><br>
-        <label>Назва ПЗ:</label><input type="text" name="software_name" value="{{ software['software_name'] }}" required><br>
-        <label>Версія:</label><input type="text" name="version" value="{{ software['version'] }}" required><br>
-        <label>Ліцензійний ключ:</label><input type="text" name="license_key" value="{{ software['license_key'] }}"><br>
-        <label>Коментарі:</label><input type="text" name="software_comments" value="{{ software['comments'] }}"><br>
-        <button type="submit">Зберегти</button>
-    </form>
+    <div class="form-container">
+        <form method="POST" action="/edit_software/{{ software['id'] }}">
+            <div class="form-group">
+                <label for="inventory_number">Інвентарний номер:</label>
+                <input type="text" id="inventory_number" name="inventory_number" list="inventory_numbers" value="{{ software['inventory_number'] }}" required>
+                <datalist id="inventory_numbers">
+                    {% for number in inventory_numbers %}
+                    <option value="{{ number }}">{{ number }}</option>
+                    {% endfor %}
+                </datalist>
+            </div>
+            <div class="form-group">
+                <label for="software_date">Дата:</label>
+                <input type="text" id="software_date" name="software_date" value="{{ software['date'] }}" required>
+            </div>
+            <div class="form-group">
+                <label for="software_name">Назва ПЗ:</label>
+                <input type="text" id="software_name" name="software_name" value="{{ software['software_name'] }}" required>
+            </div>
+            <div class="form-group">
+                <label for="version">Версія:</label>
+                <input type="text" id="version" name="version" value="{{ software['version'] }}" required>
+            </div>
+            <div class="form-group">
+                <label for="license_key">Ліцензійний ключ:</label>
+                <input type="text" id="license_key" name="license_key" value="{{ software['license_key'] }}">
+            </div>
+            <div class="form-group">
+                <label for="software_comments">Коментарі:</label>
+                <input type="text" id="software_comments" name="software_comments" value="{{ software['comments'] }}">
+            </div>
+            <div class="form-buttons">
+                <button type="submit" class="submit-btn">Зберегти</button>
+                <a href="/software" class="cancel-btn">Скасувати</a>
+            </div>
+        </form>
+    </div>
 {% endblock %}

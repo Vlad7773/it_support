@@ -13,14 +13,21 @@
 
     <div class="stats-section">
         <div class="charts-container">
-            <canvas id="combinedChart"></canvas>
-            <div class="chart-legend">
-                {% for unit in units %}
-                <div><span class="legend-color legend-color-{{ loop.index0 }}"></span> {{ unit }} (АРМ)</div>
-                {% endfor %}
-                {% for software in software_names %}
-                <div><span class="legend-color legend-color-{{ loop.index0 + units|length }}"></span> {{ software }} (ПЗ)</div>
-                {% endfor %}
+            <div class="chart-wrapper">
+                <canvas id="unitChart"></canvas>
+                <div class="chart-legend">
+                    {% for unit, count in unit_data %}
+                    <div><span class="legend-color legend-color-{{ loop.index0 }}"></span> {{ count }} {{ unit }}</div>
+                    {% endfor %}
+                </div>
+            </div>
+            <div class="chart-wrapper">
+                <canvas id="softwareChart"></canvas>
+                <div class="chart-legend">
+                    {% for software, count in software_data %}
+                    <div><span class="legend-color legend-color-{{ loop.index0 }}"></span> {{ count }} {{ software }}</div>
+                    {% endfor %}
+                </div>
             </div>
         </div>
         <div class="stats-cards">
@@ -86,14 +93,14 @@
             data: {{ software_counts | tojson | safe }}
         };
 
-        const ctx = document.getElementById('combinedChart').getContext('2d');
-        if ((unitData.labels.length > 0 && unitData.data.length > 0) || (softwareData.labels.length > 0 && softwareData.data.length > 0)) {
-            new Chart(ctx, {
+        const unitCtx = document.getElementById('unitChart').getContext('2d');
+        if (unitData.labels.length > 0 && unitData.data.length > 0) {
+            new Chart(unitCtx, {
                 type: 'doughnut',
                 data: {
-                    labels: [...unitData.labels, ...softwareData.labels],
+                    labels: unitData.labels,
                     datasets: [{
-                        data: [...unitData.data, ...softwareData.data],
+                        data: unitData.data,
                         backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#FF9F40', '#9966FF', '#FF9F40'],
                         borderWidth: 1
                     }]
@@ -105,7 +112,29 @@
                 }
             });
         } else {
-            console.log('Немає даних для графіку');
+            console.log('Немає даних для графіку АРМ');
+        }
+
+        const softwareCtx = document.getElementById('softwareChart').getContext('2d');
+        if (softwareData.labels.length > 0 && softwareData.data.length > 0) {
+            new Chart(softwareCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: softwareData.labels,
+                    datasets: [{
+                        data: softwareData.data,
+                        backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#FF9F40', '#9966FF', '#FF9F40'],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } }
+                }
+            });
+        } else {
+            console.log('Немає даних для графіку ПЗ');
         }
     </script>
 {% endblock %}

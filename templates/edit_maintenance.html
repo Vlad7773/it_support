@@ -4,12 +4,41 @@
     <div class="header">
         <h1>Редагувати Обслуговування</h1>
     </div>
-    <form method="POST" action="/edit_maintenance/{{ maintenance['id'] }}">
-        <label>Дата:</label><input type="text" name="maintenance_date" value="{{ maintenance['date'] }}" required><br>
-        <label>Тип:</label><input type="text" name="type" value="{{ maintenance['type'] }}" required><br>
-        <label>Виконане:</label><input type="text" name="performed" value="{{ maintenance['performed'] }}" required><br>
-        <label>Виконав:</label><input type="text" name="performed_by" value="{{ maintenance['performed_by'] }}" required><br>
-        <label>Коментарі:</label><input type="text" name="maintenance_comments" value="{{ maintenance['comments'] }}"><br>
-        <button type="submit">Зберегти</button>
-    </form>
+    <div class="form-container">
+        <form method="POST" action="/edit_maintenance/{{ maintenance['id'] }}">
+            <div class="form-group">
+                <label for="inventory_number">Інвентарний номер:</label>
+                <input type="text" id="inventory_number" name="inventory_number" list="inventory_numbers" value="{{ maintenance['inventory_number'] }}" required>
+                <datalist id="inventory_numbers">
+                    {% for number in inventory_numbers %}
+                    <option value="{{ number }}">{{ number }}</option>
+                    {% endfor %}
+                </datalist>
+            </div>
+            <div class="form-group">
+                <label for="maintenance_date">Дата:</label>
+                <input type="text" id="maintenance_date" name="maintenance_date" value="{{ maintenance['date'] }}" required>
+            </div>
+            <div class="form-group">
+                <label for="type">Тип:</label>
+                <input type="text" id="type" name="type" value="{{ maintenance['type'] }}" required>
+            </div>
+            <div class="form-group">
+                <label for="performed">Виконане:</label>
+                <input type="text" id="performed" name="performed" value="{{ maintenance['performed'] }}" required>
+            </div>
+            <div class="form-group">
+                <label for="performed_by">Виконав:</label>
+                <input type="text" id="performed_by" name="performed_by" value="{{ maintenance['performed_by'] }}" required>
+            </div>
+            <div class="form-group">
+                <label for="maintenance_comments">Коментарі:</label>
+                <input type="text" id="maintenance_comments" name="maintenance_comments" value="{{ maintenance['comments'] }}">
+            </div>
+            <div class="form-buttons">
+                <button type="submit" class="submit-btn">Зберегти</button>
+                <a href="/maintenance" class="cancel-btn">Скасувати</a>
+            </div>
+        </form>
+    </div>
 {% endblock %}

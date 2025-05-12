@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Технічне обслуговування{% endblock %}
+{% block content %}
+    <div class="header">
+        <h1>Технічне обслуговування</h1>
+    </div>
+
+    <form method="POST" action="/maintenance" class="search-form">
+        <input type="text" name="search_term_inventory" placeholder="Пошук за інв. номером" value="{{ search_term_inventory or '' }}">
+        <button type="submit"><i class="fas fa-search"></i></button>
+        <a href="/add_maintenance" class="add-button">Додати Обслуговування</a>
+    </form>
+
+    <table border="1">
+        <thead>
+            <tr>
+                <th>Інвентарний номер</th>
+                <th>
+                    <a href="{{ url_for('main.maintenance', sort_by_date='asc' if sort_by_date == 'desc' else 'desc', search_term_inventory=search_term_inventory) }}">
+                        Дата {{ '↑' if sort_by_date == 'asc' else '↓' }}
+                    </a>
+                </th>
+                <th>Тип</th>
+                <th>Виконане</th>
+                <th>Виконав</th>
+                <th>Коментарі</th>
+                <th>Дії</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for maintenance in maintenance_records %}
+            <tr>
+                <td>{{ maintenance['inventory_number'] }}</td>
+                <td>{{ maintenance['date'] }}</td>
+                <td>{{ maintenance['type'] }}</td>
+                <td>{{ maintenance['performed'] }}</td>
+                <td>{{ maintenance['performed_by'] }}</td>
+                <td>{{ maintenance['comments'] }}</td>
+                <td>
+                    <div class="action-links">
+                        <a href="/edit_maintenance/{{ maintenance['id'] }}">Редагувати</a> |
+                        <a href="/delete_maintenance/{{ maintenance['id'] }}" onclick="return confirm('Точно видалити?')">Видалити</a>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+{% endblock %}          

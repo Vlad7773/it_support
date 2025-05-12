@@ -21,7 +21,7 @@ body {
 }
 
 .top-bar-left {
-    font-size: 18px;
+    font-size: 20px; /* Збільшено з 18px */
     font-weight: bold;
 }
 
@@ -35,19 +35,6 @@ body {
     gap: 15px;
 }
 
-.login-btn {
-    background-color: #e74c3c;
-    color: #fff;
-    border: none;
-    padding: 5px 10px;
-    border-radius: 5px;
-    cursor: pointer;
-}
-
-.login-btn:hover {
-    background-color: #c0392b;
-}
-
 .top-bar-right i {
     font-size: 16px;
 }
@@ -58,12 +45,12 @@ body {
 
 .container {
     display: flex;
-    margin-top: 60px; /* Щоб уникнути перекриття верхньою панеллю */
+    margin-top: 60px;
     min-height: calc(100vh - 60px);
 }
 
 .sidebar {
-    width: 60px;
+    width: 80px;
     background-color: #2c3e50;
     color: #fff;
     padding: 10px 0;
@@ -85,6 +72,7 @@ body {
     width: 100%;
     text-align: center;
     font-size: 12px;
+    position: relative;
 }
 
 .sidebar a i {
@@ -97,13 +85,17 @@ body {
     white-space: nowrap;
 }
 
+.sidebar a:hover span {
+    text-decoration: underline;
+}
+
 .sidebar a:hover {
     color: #fff;
     background-color: #34495e;
 }
 
 .main-content {
-    margin-left: 80px;
+    margin-left: 100px;
     padding: 20px;
     flex-grow: 1;
 }
@@ -133,15 +125,23 @@ h1 {
     border-radius: 8px;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     margin-bottom: 20px;
-    position: relative;
-    height: 300px;
     display: flex;
-    align-items: center;
-    justify-content: center;
+    justify-content: space-around;
+    gap: 20px;
+    flex-wrap: wrap;
 }
 
-.charts-container canvas {
-    max-width: 400px;
+.chart-wrapper {
+    flex: 1;
+    min-width: 250px;
+    max-width: 350px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.chart-wrapper canvas {
+    max-width: 200px;
     max-height: 200px;
 }
 
@@ -150,6 +150,7 @@ h1 {
     display: flex;
     flex-wrap: wrap;
     gap: 10px;
+    justify-content: center;
 }
 
 .chart-legend div {
@@ -157,6 +158,10 @@ h1 {
     align-items: center;
     margin: 5px 0;
     font-size: 12px;
+    padding: 5px 10px;
+    background-color: #fff;
+    border-radius: 5px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
 }
 
 .legend-color {
@@ -223,7 +228,7 @@ th, td {
     word-wrap: break-word;
     overflow: hidden;
     text-overflow: ellipsis;
-    font-size: 12px;
+    font-size: 14px; /* Збільшено з 12px */
 }
 
 th {
@@ -302,13 +307,76 @@ a:hover {
     font-size: 12px;
 }
 
-.action-links a i {
-    font-size: 12px;
-    color: #2980b9;
+.form-container {
+    max-width: 600px;
+    margin: 0 auto;
+    background-color: #fff;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
-.action-links a:hover i {
-    color: #1c6391;
+.form-group {
+    display: flex;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.form-group label {
+    width: 150px;
+    font-weight: bold;
+    color: #2c3e50;
+    margin-right: 10px;
+}
+
+.form-group input {
+    flex: 1;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    font-size: 14px;
+}
+
+.form-group input:focus {
+    outline: none;
+    border-color: #3498db;
+    box-shadow: 0 0 5px rgba(52, 152, 219, 0.3);
+}
+
+.form-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.submit-btn {
+    padding: 10px 20px;
+    background-color: #3498db;
+    color: #fff;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.submit-btn:hover {
+    background-color: #2980b9;
+}
+
+.cancel-btn {
+    padding: 10px 20px;
+    background-color: #e74c3c;
+    color: #fff;
+    border: none;
+    border-radius: 5px;
+    text-decoration: none;
+    font-size: 14px;
+    text-align: center;
+}
+
+.cancel-btn:hover {
+    background-color: #c0392b;
 }
 
 @media (max-width: 768px) {
@@ -329,7 +397,7 @@ a:hover {
         height: auto;
         padding: 10px;
     }
-    .charts-container canvas {
+    .chart-wrapper {
         max-width: 100%;
     }
     .stats-cards {
@@ -354,5 +422,20 @@ a:hover {
     }
     .top-bar-right {
         margin-top: 10px;
+    }
+    .form-group {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    .form-group label {
+        width: 100%;
+        margin-bottom: 5px;
+    }
+    .form-group input {
+        width: 100%;
+    }
+    .search-form input[type="text"] {
+        width: 100%;
+        margin-bottom: 10px;
     }
 }

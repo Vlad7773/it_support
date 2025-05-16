@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <title>Керування користувачами</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <style>
+        table {
+            width: 95%;
+            margin: 30px auto;
+            border-collapse: collapse;
+            background: #f9f9f9;
+        }
+
+        th, td {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: center;
+        }
+
+        th {
+            background-color: #007BFF;
+            color: white;
+        }
+
+        .btn {
+            padding: 5px 10px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .btn-edit {
+            background-color: #ffc107;
+            color: #000;
+        }
+
+        .btn-delete {
+            background-color: #dc3545;
+            color: white;
+        }
+
+        .btn-status {
+            background-color: #17a2b8;
+            color: white;
+        }
+
+        .add-user-form {
+            width: 90%;
+            margin: 40px auto;
+            padding: 20px;
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+
+        .add-user-form input {
+            width: 100%;
+            padding: 8px;
+            margin: 8px 0;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+        }
+
+        .add-user-form button {
+            margin-top: 10px;
+            padding: 10px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .add-user-form button:hover {
+            background-color: #218838;
+        }
+
+        .status-active {
+            color: green;
+            font-weight: bold;
+        }
+
+        .status-blocked {
+            color: red;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+    <h2 style="text-align:center; margin-top:20px;">Адмін-панель: Користувачі</h2>
+
+    <form class="add-user-form" method="POST" action="{{ url_for('main.create_user_route') }}">
+        <h3>Створити нового користувача</h3>
+        <input type="text" name="login" placeholder="Логін" required>
+        <input type="password" name="password" placeholder="Пароль" required>
+        <input type="text" name="full_name" placeholder="ПІБ" required>
+        <input type="text" name="rank" placeholder="Звання" required>
+        <input type="text" name="unit" placeholder="Підрозділ" required>
+        <input type="text" name="notes" placeholder="Нотатки">
+        <button type="submit">Створити</button>
+    </form>
+
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Статус</th>
+                <th>Логін</th>
+                <th>Пароль</th>
+                <th>ПІБ</th>
+                <th>Звання</th>
+                <th>Підрозділ</th>
+                <th>Нотатки</th>
+                <th>Редагувати</th>
+                <th>Видалити</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for user in users %}
+            <tr>
+                <td>{{ user.id }}</td>
+                <td>
+                    <span class="{{ 'status-active' if user.status == 'active' else 'status-blocked' }}">
+                        {{ user.status }}
+                    </span>
+                </td>
+                <td>{{ user.username }}</td>
+                <td>******</td>
+                <td>{{ user.full_name or '' }}</td>
+                <td>{{ user.rank or '' }}</td>
+                <td>{{ user.unit or '' }}</td>
+                <td>{{ user.notes or '' }}</td>
+                <td>
+                    <a href="{{ url_for('main.change_status', user_id=user.id) }}" class="btn btn-status">Змінити статус</a>
+                </td>
+                <td>
+                    <a href="{{ url_for('main.delete_user', user_id=user.id) }}" class="btn btn-delete">Видалити</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+</body>
+</html>

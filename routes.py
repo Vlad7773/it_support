@@ -1,9 +1,28 @@
-from flask import Blueprint, render_template, request, redirect, url_for
+from flask import Blueprint, render_template, request, redirect, url_for, flash
 import uuid
 from db import (get_all_workplaces, get_inventory_numbers, add_workplace, get_workplace_by_id, update_workplace, delete_workplace, 
                 search_workplaces, get_all_software, add_software, get_software_by_id, update_software, 
                 delete_software, get_all_maintenance, add_maintenance, get_maintenance_by_id, 
                 update_maintenance, delete_maintenance, get_stats)
+
+from flask_login import login_user, logout_user, login_required, current_user
+from db import (
+    get_user_by_username, create_user, get_all_user_accounts, check_password,
+    reduce_attempt, reset_user_attempts, update_user_status, get_user_by_id, delete_user_by_id
+)
+
+import os
+from datetime import datetime
+
+SUPER_ADMIN_LOGIN = "admin"
+SUPER_ADMIN_PASSWORD = "admin"
+LOG_FILE = "logs/admin.log"
+
+def log_admin_action(action):
+    os.makedirs("logs", exist_ok=True)
+    with open(LOG_FILE, "a", encoding="utf-8") as log:
+        log.write(f"[{datetime.now()}] {action}\n")
+
 
 main_bp = Blueprint('main', __name__)
 
@@ -204,6 +223,86 @@ def delete_maintenance(maintenance_id):
         return redirect(url_for('main.maintenance'))
     except Exception as e:
         return f"Помилка: {e}", 500
+@main_bp.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        login_input = request.form['username']
+        password_input = request.form['password']
+        user = get_user_by_username(login_input)
+
+        if not user:
+            flash('Користувача не знайдено')
+            return redirect(url_for('main.login'))
+
+        if user.role != 'user':
+            flash('Це не користувацький акаунт')
+            return redirect(url_for('main.login'))
+
+        if user.status != 'active':
+            flash('Користувача заблоковано')
+            return redirect(url_for('main.login'))
+
+        if not check_password(password_input, user.password):
+            reduce_attempt(user.id)
+            flash('Невірний пароль')
+            if user.attempts_left <= 1:
+                update_user_status(user.id, 'blocked')
+                flash('Користувача заблоковано після 3 спроб')
+            return redirect(url_for('main.login'))
+
+        reset_user_attempts(user.id)
+        login_user(user)
+        return redirect(url_for('main.index'))
+
+    return render_template('user_login.html')
+
+
+@main_bp.route('/admin-access', methods=['GET', 'POST'])
+def admin_access():
+    if request.method == 'POST':
+        key = request.form['super_password']
+        if key == SUPER_ADMIN_PASSWORD:
+            return redirect(url_for('main.admin_panel'))
+        flash("Невірний суперпароль")
+        return redirect(url_for('main.admin_access'))
+    return render_template('admin_access.html')
+
+
+@main_bp.route('/admin')
+def admin_panel():
+    users = get_all_user_accounts()
+    return render_template('admin_panel.html', users=users)
+
+
+@main_bp.route('/create-user', methods=['POST'])
+def create_user_route():
+    data = {
+        'login': request.form['login'],
+        'password': request.form['password'],
+        'full_name': request.form['full_name'],
+        'rank': request.form['rank'],
+        'unit': request.form['unit'],
+        'notes': request.form['notes']
+    }
+    create_user(**data)
+    log_admin_action(f"Створено користувача: {data['login']}")
+    return redirect(url_for('main.admin_panel'))
+
+
+@main_bp.route('/change-status/<int:user_id>')
+def change_status(user_id):
+    user = get_user_by_id(user_id)
+    new_status = 'blocked' if user.status == 'active' else 'active'
+    update_user_status(user_id, new_status)
+    log_admin_action(f"Змінено статус {user.username} → {new_status}")
+    return redirect(url_for('main.admin_panel'))
+
+
+@main_bp.route('/delete-user/<int:user_id>')
+def delete_user(user_id):
+    delete_user_by_id(user_id)
+    log_admin_action(f"Видалено користувача ID {user_id}")
+    return redirect(url_for('main.admin_panel'))
 
 @main_bp.route('/users')
 def users():

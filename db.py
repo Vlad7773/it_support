@@ -1,4 +1,19 @@
 import sqlite3
+import bcrypt
+from flask_login import UserMixin
+
+class User(UserMixin):
+    def __init__(self, id, username, password, full_name, rank, unit, notes, role, status, attempts_left):
+        self.id = id
+        self.username = username
+        self.password = password
+        self.full_name = full_name
+        self.rank = rank
+        self.unit = unit
+        self.notes = notes
+        self.role = role
+        self.status = status
+        self.attempts_left = attempts_left
 
 def get_db_connection():
     """Створює підключення до бази даних."""
@@ -354,3 +369,115 @@ def get_stats():
         raise Exception(f"Помилка отримання статистики: {e}")
     finally:
         conn.close()
+
+def hash_password(password):
+    return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+
+def check_password(password, hashed):
+    return bcrypt.checkpw(password.encode('utf-8'), hashed.encode('utf-8'))
+
+def create_user(login, password, full_name, rank, unit, notes, role='user'):
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute('''
+        INSERT INTO users (username, password, full_name, rank, unit, notes, role, status, attempts_left)
+        VALUES (?, ?, ?, ?, ?, ?, ?, 'active', 3)
+    ''', (login, hash_password(password), full_name, rank, unit, notes, role))
+    conn.commit()
+    conn.close()
+
+def get_all_user_accounts():
+    conn = get_db_connection()
+    users = conn.execute('SELECT * FROM users').fetchall()
+    conn.close()
+    return users
+
+def update_user_status(user_id, status):
+    conn = get_db_connection()
+    conn.execute('UPDATE users SET status = ? WHERE id = ?', (status, user_id))
+    conn.commit()
+    conn.close()
+
+def reset_user_attempts(user_id):
+    conn = get_db_connection()
+    conn.execute('UPDATE users SET attempts_left = 3 WHERE id = ?', (user_id,))
+    conn.commit()
+    conn.close()
+
+def reduce_attempt(user_id):
+    conn = get_db_connection()
+    conn.execute('UPDATE users SET attempts_left = attempts_left - 1 WHERE id = ?', (user_id,))
+    conn.commit()
+    conn.close()
+
+def hash_password(password):
+    return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+
+def check_password(password, hashed):
+    return bcrypt.checkpw(password.encode('utf-8'), hashed.encode('utf-8'))
+
+def get_user_by_username(username):
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM users WHERE username = ?", (username,))
+    row = cur.fetchone()
+    conn.close()
+    if row:
+        return User(**row)
+    return None
+
+def get_user_by_id(user_id):
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM users WHERE id = ?", (user_id,))
+    row = cur.fetchone()
+    conn.close()
+    if row:
+        return User(**row)
+    return None
+
+def reduce_attempt(user_id):
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute("UPDATE users SET attempts_left = attempts_left - 1 WHERE id = ?", (user_id,))
+    conn.commit()
+    conn.close()
+
+def reset_user_attempts(user_id):
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute("UPDATE users SET attempts_left = 3 WHERE id = ?", (user_id,))
+    conn.commit()
+    conn.close()
+
+def update_user_status(user_id, status):
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute("UPDATE users SET status = ? WHERE id = ?", (status, user_id))
+    conn.commit()
+    conn.close()
+
+def get_all_user_accounts():
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM users ORDER BY id ASC")
+    result = cur.fetchall()
+    conn.close()
+    return result
+
+def create_user(login, password, full_name, rank, unit, notes, role='user'):
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute('''
+        INSERT INTO users (username, password, full_name, rank, unit, notes, role, status, attempts_left)
+        VALUES (?, ?, ?, ?, ?, ?, ?, 'active', 3)
+    ''', (login, hash_password(password), full_name, rank, unit, notes, role))
+    conn.commit()
+    conn.close()
+
+def delete_user_by_id(user_id):
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute("DELETE FROM users WHERE id = ?", (user_id,))
+    conn.commit()
+    conn.close()

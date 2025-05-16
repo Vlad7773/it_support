@@ -21,12 +21,12 @@ body {
 }
 
 .top-bar-left {
-    font-size: 20px; /* Збільшено з 18px */
+    font-size: 35px; /* Збільшено з 18px */
     font-weight: bold;
 }
 
 .top-bar-left span {
-    margin-left: 5px;
+    margin-left: 1px;
 }
 
 .top-bar-right {

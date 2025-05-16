@@ -13,7 +13,7 @@
                 <canvas id="unitChart"></canvas>
                 <div class="chart-legend">
                     {% for unit, count in unit_data %}
-                    <div><span class="legend-color legend-color-{{ loop.index0 }}"></span> {{ count }} {{ unit }}</div>
+                    <div><span class="legend-color legend-color-{{ loop.index0 }}"></span>  {{ unit }}</div>
                     {% endfor %}
                 </div>
             </div>
@@ -21,7 +21,7 @@
                 <canvas id="softwareChart"></canvas>
                 <div class="chart-legend">
                     {% for software, count in software_data %}
-                    <div><span class="legend-color legend-color-{{ loop.index0 }}"></span> {{ count }} {{ software }}</div>
+                    <div><span class="legend-color legend-color-{{ loop.index0 }}"></span>  {{ software }}</div>
                     {% endfor %}
                 </div>
             </div>

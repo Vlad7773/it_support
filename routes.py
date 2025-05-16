@@ -1,5 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 import uuid
+from db import get_db_connection 
 from db import (get_all_workplaces, get_inventory_numbers, add_workplace, get_workplace_by_id, update_workplace, delete_workplace, 
                 search_workplaces, get_all_software, add_software, get_software_by_id, update_software, 
                 delete_software, get_all_maintenance, add_maintenance, get_maintenance_by_id, 
@@ -95,13 +96,32 @@ def delete_workplace_route(rowid):
 def software():
     try:
         sort_by_date = request.args.get('sort_by_date', 'desc')
-        search_term_inventory = request.form.get('search_term_inventory', None) if request.method == 'POST' else request.args.get('search_term_inventory', None)
-        search_term_name = request.form.get('search_term_name', None) if request.method == 'POST' else request.args.get('search_term_name', None)
-        
-        software_records = get_all_software(sort_by_date, search_term_inventory, search_term_name)
-        return render_template('software.html', software_records=software_records, sort_by_date=sort_by_date, search_term_inventory=search_term_inventory, search_term_name=search_term_name)
+        search_term = request.form.get('search_term') or request.args.get('search_term')
+
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        query = "SELECT * FROM software WHERE 1=1"
+        params = []
+
+        if search_term:
+            query += " AND (inventory_number LIKE ? OR software_name LIKE ?)"
+            params.extend([f"%{search_term}%", f"%{search_term}%"])
+
+        query += f" ORDER BY date {sort_by_date}"
+
+        cur.execute(query, params)
+        software_records = cur.fetchall()
+        conn.close()
+
+        return render_template('software.html',
+                               software_records=software_records,
+                               sort_by_date=sort_by_date,
+                               search_term=search_term)
+
     except Exception as e:
         return f"Помилка: {e}", 500
+
 
 @main_bp.route('/add_software', methods=['GET', 'POST'])
 def add_software():

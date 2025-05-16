@@ -6,8 +6,7 @@
     </div>
 
     <form method="POST" action="/software" class="search-form">
-        <input type="text" name="search_term_inventory" placeholder="Пошук за інв. номером" value="{{ search_term_inventory or '' }}">
-        <input type="text" name="search_term_name" placeholder="Пошук за назвою ПЗ" value="{{ search_term_name or '' }}">
+        <input type="text" name="search_term" placeholder="Пошук за інв. номером або ПЗ" value="{{ search_term or '' }}">
         <button type="submit"><i class="fas fa-search"></i></button>
         <a href="/add_software" class="add-button">Додати ПЗ</a>
     </form>

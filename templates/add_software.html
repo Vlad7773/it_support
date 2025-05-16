@@ -8,8 +8,9 @@
         <form method="POST" action="/add_software">
             <div class="form-group">
                 <label for="inventory_number">Інвентарний номер:</label>
-                <input type="text" id="inventory_number" name="inventory_number" list="inventory_numbers" required>
-                <datalist id="inventory_numbers">
+                 <input type="text" id="inventory_number" name="inventory_number" value="АРМ-" required>
+
+                 <datalist id="inventory_numbers">
                     {% for number in inventory_numbers %}
                     <option value="{{ number }}">{{ number }}</option>
                     {% endfor %}

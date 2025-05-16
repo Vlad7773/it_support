@@ -5,11 +5,7 @@
         <h1>Список АРМ</h1>
     </div>
 
-    <form method="POST" action="/search" class="search-form">
-        <input type="text" name="search_term" placeholder="Пошук за інв. номером, IP, ПІБ...">
-        <button type="submit"><i class="fas fa-search"></i></button>
-        <a href="/add" class="add-button">Додати АРМ</a>
-    </form>
+  
 
     <div class="stats-section">
         <div class="charts-container">
@@ -45,6 +41,12 @@
             </div>
         </div>
     </div>
+    
+  <form method="POST" action="/search" class="search-form">
+        <input type="text" name="search_term" placeholder="Пошук за інв. номером, IP, ПІБ...">
+        <button type="submit"><i class="fas fa-search"></i></button>
+        <a href="/add" class="add-button">Додати АРМ</a>
+    </form>
 
     <table border="1">
         <thead>
@@ -73,8 +75,8 @@
                 <td>{{ workplace['notes'][:20] if workplace['notes'] else '' }}</td>
                 <td>
                     <div class="action-links">
-                        <a href="/edit/{{ workplace['rowid'] }}">Редагувати</a> |
-                        <a href="/delete/{{ workplace['rowid'] }}" onclick="return confirm('Точно видалити?')">Видалити</a>
+                        <a href="/edit/{{ workplace['id'] }}">Редагувати</a> |
+                        <a href="/delete/{{ workplace['id'] }}" onclick="return confirm('Точно видалити?')">Видалити</a>
                     </div>
                 </td>
             </tr>

@@ -115,24 +115,26 @@ const Tickets = () => {
 
   const getStatusIcon = (status) => {
     switch (status) {
-      case 'Відкрита':
-        return <ClockIcon className="h-5 w-5 text-red-500" />;
       case 'В процесі':
-        return <ClipboardDocumentListIcon className="h-5 w-5 text-yellow-500" />;
-      case 'Завершена':
+        return <WrenchScrewdriverIcon className="h-5 w-5 text-yellow-500" />;
+      case 'Завершено':
         return <CheckCircleIcon className="h-5 w-5 text-green-500" />;
+      case 'В очікуванні':
+        return <ClockIcon className="h-5 w-5 text-blue-500" />;
+      case 'Скасовано':
+        return <XCircleIcon className="h-5 w-5 text-red-500" />;
       default:
-        return <XCircleIcon className="h-5 w-5 text-gray-500" />;
+        return null;
     }
   };
 
   const getPriorityColor = (priority) => {
     switch (priority) {
-      case 'Висока':
+      case 'Високий':
         return 'text-red-500';
-      case 'Середня':
+      case 'Середній':
         return 'text-yellow-500';
-      case 'Низька':
+      case 'Низький':
         return 'text-green-500';
       default:
         return 'text-gray-500';
@@ -262,10 +264,11 @@ const Tickets = () => {
                   <tr key={ticket.id} className="border-b border-dark-border hover:bg-dark-bg transition-colors duration-200">
                     <td className="py-3 px-4 text-white" style={{ width: colWidths.id, wordBreak: 'break-word' }}>{ticket.id}</td>
                     <td className="py-3 px-4 text-white" style={{ width: colWidths.inventory_number, wordBreak: 'break-word' }}>{ticket.inventory_number}</td>
-                    <td className={`py-3 px-4 ${getPriorityColor(ticket.priority)}`} style={{ width: colWidths.priority, wordBreak: 'break-word' }}>{ticket.priority}</td>
+                    <td className="py-3 px-4 text-white" style={{ width: colWidths.priority, wordBreak: 'break-word' }}>{ticket.priority}</td>
                     <td className="py-3 px-4" style={{ width: colWidths.status, wordBreak: 'break-word' }}>
                       <div className="flex items-center space-x-2">
-                        <span className={getStatusIcon(ticket.status)}>{ticket.status}</span>
+                        {getStatusIcon(ticket.status)}
+                        <span className="text-white">{ticket.status}</span>
                       </div>
                     </td>
                     <td className="py-3 px-4 text-white" style={{ width: colWidths.department, wordBreak: 'break-word' }}>{ticket.department}</td>

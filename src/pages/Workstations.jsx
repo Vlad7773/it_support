@@ -888,31 +888,61 @@ const Workstations = () => {
             </div>
 
             {/* Кнопки дій */}
-            <div className="flex justify-end space-x-4">
+            <div className="mt-6 flex justify-end space-x-3">
               <button
-                onClick={() => {
-                  setShowDetailsModal(false);
-                  // TODO: Implement navigation to software page
-                }}
-                className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                disabled
+                type="button"
+                onClick={() => setShowDetailsModal(false)}
+                className="px-4 py-2 text-gray-300 hover:text-white"
               >
-                Перейти до ПЗ
+                Закрити
               </button>
               <button
+                type="button"
                 onClick={() => {
-                  setShowDetailsModal(false);
-                  setFormData(selectedWorkstation);
-                  setShowEditModal(true);
+                  // Navigate to tickets
+                  window.location.href = `/tickets?arm=${selectedWorkstation.inventory_number}`;
                 }}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
+              >
+                Заявки
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  // Navigate to repairs
+                  window.location.href = `/repairs?arm=${selectedWorkstation.inventory_number}`;
+                }}
+                className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
+              >
+                Ремонти
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  // Navigate to software
+                  window.location.href = `/software?arm=${selectedWorkstation.inventory_number}`;
+                }}
+                className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
+              >
+                ПЗ
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowEditModal(true);
+                  setShowDetailsModal(false);
+                }}
+                className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
               >
                 Редагувати
               </button>
               <button
+                type="button"
                 onClick={() => {
-                  setShowDetailsModal(false);
-                  setShowDeleteModal(true);
+                  if (window.confirm('Ви впевнені, що хочете видалити цей АРМ?')) {
+                    handleDelete();
+                    setShowDetailsModal(false);
+                  }
                 }}
                 className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
               >

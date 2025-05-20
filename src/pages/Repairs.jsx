@@ -7,7 +7,7 @@ import {
 } from '@heroicons/react/24/outline';
 
 const Repairs = () => {
-  const [requests, setRequests] = useState([]);
+  const [repairs, setRepairs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -15,24 +15,29 @@ const Repairs = () => {
   const [filterDepartment, setFilterDepartment] = useState('all');
 
   const [showDetailsModal, setShowDetailsModal] = useState(false);
-  const [selectedRequest, setSelectedRequest] = useState(null);
+  const [selectedRepair, setSelectedRepair] = useState(null);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [armSearchTerm, setArmSearchTerm] = useState('');
+  const [filteredArms, setFilteredArms] = useState([]);
+  const [selectedArm, setSelectedArm] = useState(null);
 
-  // Mock data for requests
-  const generateMockRequests = () => {
+  // Mock data for workstations
+  const mockWorkstations = [
+    { inventory_number: 'АРМ-001', department: 'IT відділ', responsible: 'Іванов Іван Іванович' },
+    { inventory_number: 'АРМ-002', department: 'Безпека', responsible: 'Петров Петро Петрович' },
+    { inventory_number: 'АРМ-003', department: 'Адміністрація', responsible: 'Сидорова Марія Іванівна' },
+    { inventory_number: 'АРМ-004', department: 'Бухгалтерія', responsible: 'Коваленко Олена Василівна' },
+    { inventory_number: 'АРМ-005', department: 'Кадри', responsible: 'Мельник Олег Андрійович' },
+  ];
+
+  // Mock data for repairs
+  const generateMockRepairs = () => {
     const mockData = [];
     const statuses = ['В процесі', 'Завершено', 'В очікуванні', 'Скасовано'];
     const priorities = ['Високий', 'Середній', 'Низький'];
-    const mockWorkstationsSimple = [
-        { inventory_number: 'АРМ-001', department: 'IT відділ', responsible: 'Іванов Іван Іванович' },
-        { inventory_number: 'АРМ-002', department: 'Безпека', responsible: 'Петров Петро Петрович' },
-        { inventory_number: 'АРМ-003', department: 'Адміністрація', responsible: 'Сидорова Марія Іванівна' },
-        { inventory_number: 'АРМ-004', department: 'Бухгалтерія', responsible: 'Коваленко Олена Василівна' },
-        { inventory_number: 'АРМ-005', department: 'Кадри', responsible: 'Мельник Олег Андрійович' },
-    ];
 
     for (let i = 1; i <= 20; i++) {
-      const workstation = mockWorkstationsSimple[i % mockWorkstationsSimple.length];
+      const workstation = mockWorkstations[i % mockWorkstations.length];
       mockData.push({
         id: i,
         inventory_number: workstation.inventory_number,
@@ -41,19 +46,19 @@ const Repairs = () => {
         department: workstation.department,
         responsible: workstation.responsible,
         creation_date: `2024-01-${String(i).padStart(2, '0')}`,
-        description: `Опис заявки ${i} для АРМ ${workstation.inventory_number}`,
+        description: `Опис ремонту ${i} для АРМ ${workstation.inventory_number}`,
       });
     }
     return mockData;
   };
 
-  const mockRequests = generateMockRequests();
+  const mockRepairs = generateMockRepairs();
 
   useEffect(() => {
     setLoading(true);
     try {
       setTimeout(() => {
-        setRequests(mockRequests);
+        setRepairs(mockRepairs);
         setLoading(false);
       }, 500);
     } catch (err) {
@@ -62,18 +67,29 @@ const Repairs = () => {
     }
   }, []);
 
-  const getStatusColor = (status) => {
+  useEffect(() => {
+    if (armSearchTerm) {
+      const filtered = mockWorkstations.filter(arm => 
+        arm.inventory_number.toLowerCase().includes(armSearchTerm.toLowerCase())
+      );
+      setFilteredArms(filtered);
+    } else {
+      setFilteredArms([]);
+    }
+  }, [armSearchTerm]);
+
+  const getStatusIcon = (status) => {
     switch (status) {
       case 'В процесі':
-        return 'text-yellow-500';
+        return <WrenchScrewdriverIcon className="h-5 w-5 text-yellow-500" />;
       case 'Завершено':
-        return 'text-green-500';
+        return <CheckCircleIcon className="h-5 w-5 text-green-500" />;
       case 'В очікуванні':
-        return 'text-blue-500';
+        return <ClockIcon className="h-5 w-5 text-blue-500" />;
       case 'Скасовано':
-        return 'text-red-500';
+        return <XCircleIcon className="h-5 w-5 text-red-500" />;
       default:
-        return 'text-gray-500';
+        return null;
     }
   };
 
@@ -90,35 +106,35 @@ const Repairs = () => {
     }
   };
 
-  const filteredRequests = requests.filter(request => {
+  const filteredRepairs = repairs.filter(repair => {
     const searchLower = searchTerm.toLowerCase();
     const matchesSearch =
-      request.inventory_number.toLowerCase().includes(searchLower) ||
-      request.department.toLowerCase().includes(searchLower) ||
-      request.responsible.toLowerCase().includes(searchLower) ||
-      request.status.toLowerCase().includes(searchLower);
+      repair.inventory_number.toLowerCase().includes(searchLower) ||
+      repair.department.toLowerCase().includes(searchLower) ||
+      repair.responsible.toLowerCase().includes(searchLower) ||
+      repair.status.toLowerCase().includes(searchLower);
 
-    const matchesStatus = filterStatus === 'all' || request.status === filterStatus;
-    const matchesDepartment = filterDepartment === 'all' || (request.department ? request.department === filterDepartment : true);
+    const matchesStatus = filterStatus === 'all' || repair.status === filterStatus;
+    const matchesDepartment = filterDepartment === 'all' || (repair.department ? repair.department === filterDepartment : true);
 
     return matchesSearch && matchesStatus && matchesDepartment;
   });
 
-  const handleAddRequest = (newRequestData) => {
-    const newRequest = {
-      id: requests.length + 1,
-      ...newRequestData,
+  const handleAddRepair = (newRepairData) => {
+    const newRepair = {
+      id: repairs.length + 1,
+      ...newRepairData,
       creation_date: new Date().toISOString().split('T')[0],
       status: 'В очікуванні',
     };
-    setRequests([...requests, newRequest]);
+    setRepairs([...repairs, newRepair]);
   };
 
-  const handleUpdateRequest = (updatedRequestData) => {
-    const updatedRequestsList = requests.map(req =>
-      req.id === updatedRequestData.id ? { ...req, ...updatedRequestData } : req
+  const handleUpdateRepair = (updatedRepairData) => {
+    const updatedRepairsList = repairs.map(repair =>
+      repair.id === updatedRepairData.id ? { ...repair, ...updatedRepairData } : repair
     );
-    setRequests(updatedRequestsList);
+    setRepairs(updatedRepairsList);
   };
 
   const colWidths = {
@@ -143,12 +159,12 @@ const Repairs = () => {
   return (
     <div className="p-6 flex flex-col h-full">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-white">Заявки</h1>
+        <h1 className="text-2xl font-bold text-white">Ремонти</h1>
         <button
           onClick={() => setShowAddModal(true)}
           className="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg transition-colors"
         >
-          Створити заявку
+          Створити ремонт
         </button>
       </div>
 
@@ -194,12 +210,12 @@ const Repairs = () => {
         </div>
 
         <div className="relative overflow-y-auto flex-1">
-          <div className="table-container overflow-y-auto w-full" style={{ maxHeight: 'calc(100vh - 250px)' }}>
+          <div className="table-container w-full" style={{ maxHeight: 'calc(100vh - 250px)' }}>
             <table className="table-auto w-full">
               <thead className="sticky top-0 bg-dark-card z-10">
                 <tr className="border-b border-dark-border">
                   <th className="px-4 py-2 text-left" style={{ width: colWidths.id }}>ID</th>
-                  <th className="px-4 py-2 text-left" style={{ width: colWidths.inventory_number }}>Інвентарний номер АРМ</th>
+                  <th className="px-4 py-2 text-left" style={{ width: colWidths.inventory_number }}>Інвентарний номер</th>
                   <th className="px-4 py-2 text-left" style={{ width: colWidths.priority }}>Пріоритет</th>
                   <th className="px-4 py-2 text-left" style={{ width: colWidths.status }}>Статус</th>
                   <th className="px-4 py-2 text-left" style={{ width: colWidths.department }}>Підрозділ</th>
@@ -209,23 +225,24 @@ const Repairs = () => {
                 </tr>
               </thead>
               <tbody>
-                {filteredRequests.map((request) => (
-                  <tr key={request.id} className="border-b border-dark-border hover:bg-dark-bg transition-colors duration-200">
-                    <td className="py-3 px-4 text-white" style={{ width: colWidths.id, wordBreak: 'break-word' }}>{request.id}</td>
-                    <td className="py-3 px-4 text-white" style={{ width: colWidths.inventory_number, wordBreak: 'break-word' }}>{request.inventory_number}</td>
-                    <td className={`py-3 px-4 ${getPriorityColor(request.priority)}`} style={{ width: colWidths.priority, wordBreak: 'break-word' }}>{request.priority}</td>
+                {filteredRepairs.map((repair) => (
+                  <tr key={repair.id} className="border-b border-dark-border hover:bg-dark-bg transition-colors duration-200">
+                    <td className="py-3 px-4 text-white" style={{ width: colWidths.id, wordBreak: 'break-word' }}>{repair.id}</td>
+                    <td className="py-3 px-4 text-white" style={{ width: colWidths.inventory_number, wordBreak: 'break-word' }}>{repair.inventory_number}</td>
+                    <td className="py-3 px-4 text-white" style={{ width: colWidths.priority, wordBreak: 'break-word' }}>{repair.priority}</td>
                     <td className="py-3 px-4" style={{ width: colWidths.status, wordBreak: 'break-word' }}>
                       <div className="flex items-center space-x-2">
-                        <span className={getStatusColor(request.status)}>{request.status}</span>
+                        {getStatusIcon(repair.status)}
+                        <span className="text-white">{repair.status}</span>
                       </div>
                     </td>
-                    <td className="py-3 px-4 text-white" style={{ width: colWidths.department, wordBreak: 'break-word' }}>{request.department}</td>
-                    <td className="py-3 px-4 text-white" style={{ width: colWidths.responsible, wordBreak: 'break-word' }}>{request.responsible}</td>
-                    <td className="py-3 px-4 text-white" style={{ width: colWidths.creation_date, wordBreak: 'break-word' }}>{request.creation_date}</td>
+                    <td className="py-3 px-4 text-white" style={{ width: colWidths.department, wordBreak: 'break-word' }}>{repair.department}</td>
+                    <td className="py-3 px-4 text-white" style={{ width: colWidths.responsible, wordBreak: 'break-word' }}>{repair.responsible}</td>
+                    <td className="py-3 px-4 text-white" style={{ width: colWidths.creation_date, wordBreak: 'break-word' }}>{repair.creation_date}</td>
                     <td className="py-3 px-4" style={{ width: colWidths.actions }}>
                       <button
                         onClick={() => {
-                          setSelectedRequest(request);
+                          setSelectedRepair(repair);
                           setShowDetailsModal(true);
                         }}
                         className="text-gray-400 hover:text-white transition-colors duration-200 text-2xl font-bold"
@@ -241,8 +258,258 @@ const Repairs = () => {
         </div>
       </div>
 
-      {/* TODO: Implement Add Request Modal */}
-      {/* TODO: Implement Details/Edit Request Modal */}
+      {/* Add Repair Modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-dark-card rounded-lg p-6 w-full max-w-2xl">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold text-white">Створити ремонт</h2>
+              <button
+                onClick={() => {
+                  setShowAddModal(false);
+                  setArmSearchTerm('');
+                  setSelectedArm(null);
+                }}
+                className="text-gray-400 hover:text-white"
+              >
+                ✕
+              </button>
+            </div>
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              if (!selectedArm) return;
+              
+              const formData = new FormData(e.target);
+              handleAddRepair({
+                inventory_number: selectedArm.inventory_number,
+                department: selectedArm.department,
+                responsible: selectedArm.responsible,
+                priority: formData.get('priority'),
+                description: formData.get('description'),
+              });
+              setShowAddModal(false);
+              setArmSearchTerm('');
+              setSelectedArm(null);
+            }}>
+              <div className="space-y-4">
+                <div className="relative">
+                  <label className="block text-sm font-medium text-gray-300 mb-1">
+                    АРМ
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Введіть номер АРМ..."
+                    value={armSearchTerm}
+                    onChange={(e) => setArmSearchTerm(e.target.value)}
+                    className="w-full bg-dark-bg border border-dark-border rounded-lg px-4 py-2 text-white"
+                  />
+                  {filteredArms.length > 0 && !selectedArm && (
+                    <div className="absolute z-10 w-full mt-1 bg-dark-bg border border-dark-border rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                      {filteredArms.map(arm => (
+                        <div
+                          key={arm.inventory_number}
+                          onClick={() => {
+                            setSelectedArm(arm);
+                            setArmSearchTerm(arm.inventory_number);
+                            setFilteredArms([]);
+                          }}
+                          className="px-4 py-2 hover:bg-dark-card cursor-pointer text-white"
+                        >
+                          {arm.inventory_number} - {arm.department}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {selectedArm && (
+                    <div className="mt-2 p-2 bg-dark-bg border border-dark-border rounded-lg">
+                      <div className="text-white">АРМ: {selectedArm.inventory_number}</div>
+                      <div className="text-gray-400">Підрозділ: {selectedArm.department}</div>
+                      <div className="text-gray-400">Відповідальний: {selectedArm.responsible}</div>
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-1">
+                    Пріоритет
+                  </label>
+                  <select
+                    name="priority"
+                    required
+                    className="w-full bg-dark-bg border border-dark-border rounded-lg px-4 py-2 text-white"
+                  >
+                    <option value="Низький">Низький</option>
+                    <option value="Середній">Середній</option>
+                    <option value="Високий">Високий</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-1">
+                    Опис проблеми
+                  </label>
+                  <textarea
+                    name="description"
+                    required
+                    rows="4"
+                    className="w-full bg-dark-bg border border-dark-border rounded-lg px-4 py-2 text-white"
+                  />
+                </div>
+              </div>
+              <div className="mt-6 flex justify-end space-x-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowAddModal(false);
+                    setArmSearchTerm('');
+                    setSelectedArm(null);
+                  }}
+                  className="px-4 py-2 text-gray-300 hover:text-white"
+                >
+                  Скасувати
+                </button>
+                <button
+                  type="submit"
+                  disabled={!selectedArm}
+                  className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Створити
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Details/Edit Repair Modal */}
+      {showDetailsModal && selectedRepair && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-dark-card rounded-lg p-6 w-full max-w-2xl">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold text-white">Ремонт #{selectedRepair.id}</h2>
+              <button
+                onClick={() => setShowDetailsModal(false)}
+                className="text-gray-400 hover:text-white"
+              >
+                ✕
+              </button>
+            </div>
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              const formData = new FormData(e.target);
+              handleUpdateRepair({
+                ...selectedRepair,
+                status: formData.get('status'),
+                priority: formData.get('priority'),
+                description: formData.get('description'),
+              });
+              setShowDetailsModal(false);
+            }}>
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-1">
+                      АРМ
+                    </label>
+                    <input
+                      type="text"
+                      value={selectedRepair.inventory_number}
+                      disabled
+                      className="w-full bg-dark-bg border border-dark-border rounded-lg px-4 py-2 text-gray-400"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-1">
+                      Підрозділ
+                    </label>
+                    <input
+                      type="text"
+                      value={selectedRepair.department}
+                      disabled
+                      className="w-full bg-dark-bg border border-dark-border rounded-lg px-4 py-2 text-gray-400"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-1">
+                      Відповідальний
+                    </label>
+                    <input
+                      type="text"
+                      value={selectedRepair.responsible}
+                      disabled
+                      className="w-full bg-dark-bg border border-dark-border rounded-lg px-4 py-2 text-gray-400"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-1">
+                      Дата створення
+                    </label>
+                    <input
+                      type="text"
+                      value={selectedRepair.creation_date}
+                      disabled
+                      className="w-full bg-dark-bg border border-dark-border rounded-lg px-4 py-2 text-gray-400"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-1">
+                    Статус
+                  </label>
+                  <select
+                    name="status"
+                    defaultValue={selectedRepair.status}
+                    className="w-full bg-dark-bg border border-dark-border rounded-lg px-4 py-2 text-white"
+                  >
+                    <option value="В очікуванні">В очікуванні</option>
+                    <option value="В процесі">В процесі</option>
+                    <option value="Завершено">Завершено</option>
+                    <option value="Скасовано">Скасовано</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-1">
+                    Пріоритет
+                  </label>
+                  <select
+                    name="priority"
+                    defaultValue={selectedRepair.priority}
+                    className="w-full bg-dark-bg border border-dark-border rounded-lg px-4 py-2 text-white"
+                  >
+                    <option value="Низький">Низький</option>
+                    <option value="Середній">Середній</option>
+                    <option value="Високий">Високий</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-1">
+                    Опис проблеми
+                  </label>
+                  <textarea
+                    name="description"
+                    defaultValue={selectedRepair.description}
+                    rows="4"
+                    className="w-full bg-dark-bg border border-dark-border rounded-lg px-4 py-2 text-white"
+                  />
+                </div>
+              </div>
+              <div className="mt-6 flex justify-end space-x-3">
+                <button
+                  type="button"
+                  onClick={() => setShowDetailsModal(false)}
+                  className="px-4 py-2 text-gray-300 hover:text-white"
+                >
+                  Скасувати
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
+                >
+                  Зберегти
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

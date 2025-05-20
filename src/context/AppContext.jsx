@@ -15,22 +15,25 @@ export const AppProvider = ({ children }) => {
 
   const [tickets, setTickets] = useState([
     {
-      id: 'TK-001',
-      type: 'Несправність',
+      id: 'T-001',
+      workstation: 'АРМ-001',
+      problem: 'Не працює мишка',
       status: 'В процесі',
       user: 'Іванов Іван Іванович',
       date: '2024-01-01',
     },
     {
-      id: 'TK-002',
-      type: 'Встановлення',
+      id: 'T-002',
+      workstation: 'АРМ-002',
+      problem: 'Встановлення ПЗ',
       status: 'Завершено',
       user: 'Петров Петро Петрович',
       date: '2024-01-02',
     },
     {
-      id: 'TK-003',
-      type: 'Консультація',
+      id: 'T-003',
+      workstation: 'АРМ-003',
+      problem: 'Консультація по налаштуванню',
       status: 'В очікуванні',
       user: 'Сидорова Марія Іванівна',
       date: '2024-01-03',

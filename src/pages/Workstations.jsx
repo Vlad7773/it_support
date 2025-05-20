@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { FaPlus, FaEdit, FaTrash, FaSearch } from 'react-icons/fa';
 
 const Workstations = () => {
   const [workstations, setWorkstations] = useState([]);
@@ -57,11 +56,10 @@ const Workstations = () => {
     return mockData;
   };
 
-  const mockWorkstations = generateMockWorkstations();
-
   useEffect(() => {
     setLoading(true);
     try {
+      const mockWorkstations = generateMockWorkstations();
       setTimeout(() => {
         setWorkstations(mockWorkstations);
         setLoading(false);
@@ -154,21 +152,6 @@ const Workstations = () => {
     setFilterDepartment(e.target.value);
   };
 
-  const getGrifColor = (grif) => {
-    switch (grif) {
-      case 'ДСК':
-        return 'text-gray-400'; // Lighter gray
-      case 'Особливої важливості':
-        return 'text-blue-400'; // Lighter blue
-      case 'Цілком таємно':
-        return 'text-red-400';   // Lighter red
-      case 'Таємно':
-        return 'text-yellow-400'; // Lighter yellow
-      default:
-        return 'text-gray-400';
-    }
-  };
-
   const filteredWorkstations = workstations.filter(ws => {
     const searchLower = searchTerm.toLowerCase();
     const matchesSearch =
@@ -191,20 +174,6 @@ const Workstations = () => {
   if (error) {
     return <div className="p-6 text-red-500">Помилка: {error}</div>;
   }
-
-  // Define column widths consistently
-  const colWidths = {
-    id: 'w-16',
-    inventory_number: 'w-32',
-    ip_address: 'w-32',
-    mac_address: 'w-32',
-    grif: 'w-44',
-    department: 'w-40',
-    responsible: 'w-52',
-    contacts: 'w-32',
-    registration_date: 'w-32',
-    actions: 'w-24',
-  };
 
   return (
     <div className="p-6 flex flex-col h-full">

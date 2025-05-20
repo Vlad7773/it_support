@@ -2,7 +2,13 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 
 const AppContext = createContext();
 
-export const useAppContext = () => useContext(AppContext);
+export const useAppContext = () => {
+  const context = useContext(AppContext);
+  if (!context) {
+    throw new Error('useAppContext must be used within an AppProvider');
+  }
+  return context;
+};
 
 export const AppProvider = ({ children }) => {
   const [workstations, setWorkstations] = useState([
@@ -97,6 +103,31 @@ export const AppProvider = ({ children }) => {
     },
   ]);
 
+  const [settings, setSettings] = useState({
+    theme: 'dark',
+    language: 'uk',
+    notifications: {
+      email: true,
+      browser: true,
+      sound: false
+    },
+    display: {
+      fontSize: 'medium',
+      density: 'comfortable',
+      showAvatars: true
+    },
+    security: {
+      twoFactor: false,
+      sessionTimeout: 30,
+      passwordExpiry: 90
+    },
+    backup: {
+      autoBackup: true,
+      backupFrequency: 'daily',
+      retentionPeriod: 30
+    }
+  });
+
   const addWorkstation = (workstation) => {
     setWorkstations([...workstations, workstation]);
   };
@@ -145,6 +176,10 @@ export const AppProvider = ({ children }) => {
     setRepairs([...repairs, repair]);
   };
 
+  const updateSettings = (newSettings) => {
+    setSettings(newSettings);
+  };
+
   const value = {
     workstations,
     tickets,
@@ -155,6 +190,8 @@ export const AppProvider = ({ children }) => {
     addTicket,
     updateTicket,
     addRepair,
+    settings,
+    updateSettings,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

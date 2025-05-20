@@ -1,197 +1,200 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useState, useContext, useEffect } from 'react';
+import axios from 'axios';
+
+const API_URL = 'http://localhost:3001/api';
 
 const AppContext = createContext();
 
-export const useAppContext = () => {
-  const context = useContext(AppContext);
-  if (!context) {
-    throw new Error('useAppContext must be used within an AppProvider');
-  }
-  return context;
-};
+export const useApp = () => useContext(AppContext);
 
 export const AppProvider = ({ children }) => {
-  const [workstations, setWorkstations] = useState([
-    { inventory_number: 'АРМ-001', department: 'IT відділ', responsible: 'Іванов Іван Іванович', os: 'Windows 10' },
-    { inventory_number: 'АРМ-002', department: 'Безпека', responsible: 'Петров Петро Петрович', os: 'Windows 11' },
-    { inventory_number: 'АРМ-003', department: 'Адміністрація', responsible: 'Сидорова Марія Іванівна', os: 'Windows 10' },
-    { inventory_number: 'АРМ-004', department: 'Бухгалтерія', responsible: 'Коваленко Олена Василівна', os: 'Ubuntu' },
-    { inventory_number: 'АРМ-005', department: 'Кадри', responsible: 'Мельник Олег Андрійович', os: 'macOS' },
-  ]);
+  const [workstations, setWorkstations] = useState([]);
+  const [users, setUsers] = useState([]);
+  const [tickets, setTickets] = useState([]);
+  const [repairs, setRepairs] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  const [tickets, setTickets] = useState([
-    {
-      id: 'T-001',
-      workstation: 'АРМ-001',
-      problem: 'Не працює мишка',
-      status: 'В процесі',
-      user: 'Іванов Іван Іванович',
-      date: '2024-01-01',
-    },
-    {
-      id: 'T-002',
-      workstation: 'АРМ-002',
-      problem: 'Встановлення ПЗ',
-      status: 'Завершено',
-      user: 'Петров Петро Петрович',
-      date: '2024-01-02',
-    },
-    {
-      id: 'T-003',
-      workstation: 'АРМ-003',
-      problem: 'Консультація по налаштуванню',
-      status: 'В очікуванні',
-      user: 'Сидорова Марія Іванівна',
-      date: '2024-01-03',
-    },
-  ]);
+  // Завантаження даних
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      const [workstationsRes, usersRes, ticketsRes, repairsRes] = await Promise.all([
+        axios.get(`${API_URL}/workstations`),
+        axios.get(`${API_URL}/users`),
+        axios.get(`${API_URL}/tickets`),
+        axios.get(`${API_URL}/repairs`)
+      ]);
 
-  const [repairs, setRepairs] = useState([
-    {
-      id: 'R-001',
-      workstation: 'АРМ-001',
-      type: 'Несправність',
-      status: 'В процесі',
-      user: 'Іванов Іван Іванович',
-      date: '2024-01-01',
-    },
-    {
-      id: 'R-002',
-      workstation: 'АРМ-002',
-      type: 'Встановлення',
-      status: 'Завершено',
-      user: 'Петров Петро Петрович',
-      date: '2024-01-02',
-    },
-    {
-      id: 'R-003',
-      workstation: 'АРМ-003',
-      type: 'Консультація',
-      status: 'В очікуванні',
-      user: 'Сидорова Марія Іванівна',
-      date: '2024-01-03',
-    },
-  ]);
-
-  const [users, setUsers] = useState([
-    {
-      id: 1,
-      username: 'admin',
-      password: 'admin123',
-      name: 'Адміністратор',
-      role: 'admin',
-      department: 'IT відділ',
-      email: 'admin@example.com',
-    },
-    {
-      id: 2,
-      username: 'user1',
-      password: 'user123',
-      name: 'Іванов Іван Іванович',
-      role: 'user',
-      department: 'IT відділ',
-      email: 'user1@example.com',
-    },
-    {
-      id: 3,
-      username: 'user2',
-      password: 'user123',
-      name: 'Петров Петро Петрович',
-      role: 'user',
-      department: 'Безпека',
-      email: 'user2@example.com',
-    },
-  ]);
-
-  const [settings, setSettings] = useState({
-    theme: 'dark',
-    language: 'uk',
-    notifications: {
-      email: true,
-      browser: true,
-      sound: false
-    },
-    display: {
-      fontSize: 'medium',
-      density: 'comfortable',
-      showAvatars: true
-    },
-    security: {
-      twoFactor: false,
-      sessionTimeout: 30,
-      passwordExpiry: 90
-    },
-    backup: {
-      autoBackup: true,
-      backupFrequency: 'daily',
-      retentionPeriod: 30
+      setWorkstations(workstationsRes.data);
+      setUsers(usersRes.data);
+      setTickets(ticketsRes.data);
+      setRepairs(repairsRes.data);
+      setError(null);
+    } catch (err) {
+      setError('Помилка завантаження даних');
+      console.error('Error fetching data:', err);
+    } finally {
+      setLoading(false);
     }
-  });
-
-  const addWorkstation = (workstation) => {
-    setWorkstations([...workstations, workstation]);
   };
 
-  const removeWorkstation = (inventoryNumber) => {
-    setWorkstations(workstations.filter(w => w.inventory_number !== inventoryNumber));
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  // Workstations CRUD
+  const addWorkstation = async (workstation) => {
+    try {
+      const response = await axios.post(`${API_URL}/workstations`, workstation);
+      setWorkstations(prev => [...prev, response.data]);
+      return response.data;
+    } catch (err) {
+      setError('Помилка додавання АРМ');
+      throw err;
+    }
   };
 
-  const addTicket = (ticket) => {
-    setTickets([...tickets, ticket]);
-    
-    // Автоматично створюємо запис в ремонтах
-    const repair = {
-      id: `R-${String(repairs.length + 1).padStart(3, '0')}`,
-      workstation: ticket.workstation,
-      description: ticket.problem,
-      status: ticket.status,
-      technician: ticket.user,
-      date: ticket.date,
-    };
-    setRepairs([...repairs, repair]);
+  const updateWorkstation = async (id, workstation) => {
+    try {
+      const response = await axios.put(`${API_URL}/workstations/${id}`, workstation);
+      setWorkstations(prev => prev.map(w => w.id === id ? response.data : w));
+      return response.data;
+    } catch (err) {
+      setError('Помилка оновлення АРМ');
+      throw err;
+    }
   };
 
-  const updateTicket = (updatedTicket) => {
-    const newTickets = tickets.map(ticket => 
-      ticket.id === updatedTicket.id ? updatedTicket : ticket
-    );
-    setTickets(newTickets);
-
-    // Оновлюємо відповідний запис в ремонтах
-    const newRepairs = repairs.map(repair => {
-      if (repair.workstation === updatedTicket.workstation && 
-          repair.date === updatedTicket.date) {
-        return {
-          ...repair,
-          status: updatedTicket.status,
-          description: updatedTicket.problem,
-        };
-      }
-      return repair;
-    });
-    setRepairs(newRepairs);
+  const deleteWorkstation = async (id) => {
+    try {
+      await axios.delete(`${API_URL}/workstations/${id}`);
+      setWorkstations(prev => prev.filter(w => w.id !== id));
+    } catch (err) {
+      setError('Помилка видалення АРМ');
+      throw err;
+    }
   };
 
-  const addRepair = (repair) => {
-    setRepairs([...repairs, repair]);
+  // Users CRUD
+  const addUser = async (user) => {
+    try {
+      const response = await axios.post(`${API_URL}/users`, user);
+      setUsers(prev => [...prev, response.data]);
+      return response.data;
+    } catch (err) {
+      setError('Помилка додавання користувача');
+      throw err;
+    }
   };
 
-  const updateSettings = (newSettings) => {
-    setSettings(newSettings);
+  const updateUser = async (id, user) => {
+    try {
+      const response = await axios.put(`${API_URL}/users/${id}`, user);
+      setUsers(prev => prev.map(u => u.id === id ? response.data : u));
+      return response.data;
+    } catch (err) {
+      setError('Помилка оновлення користувача');
+      throw err;
+    }
+  };
+
+  const deleteUser = async (id) => {
+    try {
+      await axios.delete(`${API_URL}/users/${id}`);
+      setUsers(prev => prev.filter(u => u.id !== id));
+    } catch (err) {
+      setError('Помилка видалення користувача');
+      throw err;
+    }
+  };
+
+  // Tickets CRUD
+  const addTicket = async (ticket) => {
+    try {
+      const response = await axios.post(`${API_URL}/tickets`, ticket);
+      setTickets(prev => [...prev, response.data]);
+      return response.data;
+    } catch (err) {
+      setError('Помилка додавання заявки');
+      throw err;
+    }
+  };
+
+  const updateTicket = async (id, ticket) => {
+    try {
+      const response = await axios.put(`${API_URL}/tickets/${id}`, ticket);
+      setTickets(prev => prev.map(t => t.id === id ? response.data : t));
+      return response.data;
+    } catch (err) {
+      setError('Помилка оновлення заявки');
+      throw err;
+    }
+  };
+
+  const deleteTicket = async (id) => {
+    try {
+      await axios.delete(`${API_URL}/tickets/${id}`);
+      setTickets(prev => prev.filter(t => t.id !== id));
+    } catch (err) {
+      setError('Помилка видалення заявки');
+      throw err;
+    }
+  };
+
+  // Repairs CRUD
+  const addRepair = async (repair) => {
+    try {
+      const response = await axios.post(`${API_URL}/repairs`, repair);
+      setRepairs(prev => [...prev, response.data]);
+      return response.data;
+    } catch (err) {
+      setError('Помилка додавання ремонту');
+      throw err;
+    }
+  };
+
+  const updateRepair = async (id, repair) => {
+    try {
+      const response = await axios.put(`${API_URL}/repairs/${id}`, repair);
+      setRepairs(prev => prev.map(r => r.id === id ? response.data : r));
+      return response.data;
+    } catch (err) {
+      setError('Помилка оновлення ремонту');
+      throw err;
+    }
+  };
+
+  const deleteRepair = async (id) => {
+    try {
+      await axios.delete(`${API_URL}/repairs/${id}`);
+      setRepairs(prev => prev.filter(r => r.id !== id));
+    } catch (err) {
+      setError('Помилка видалення ремонту');
+      throw err;
+    }
   };
 
   const value = {
     workstations,
+    users,
     tickets,
     repairs,
-    users,
+    loading,
+    error,
     addWorkstation,
-    removeWorkstation,
+    updateWorkstation,
+    deleteWorkstation,
+    addUser,
+    updateUser,
+    deleteUser,
     addTicket,
     updateTicket,
+    deleteTicket,
     addRepair,
-    settings,
-    updateSettings,
+    updateRepair,
+    deleteRepair,
+    refreshData: fetchData
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

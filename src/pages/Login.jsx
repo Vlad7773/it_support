@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAppContext } from '../context/AppContext';
+import { useApp } from '../context/AppContext';
 
 const Login = () => {
   const navigate = useNavigate();
-  const { users } = useAppContext();
+  const { users } = useApp();
   const [formData, setFormData] = useState({
     username: '',
     password: '',

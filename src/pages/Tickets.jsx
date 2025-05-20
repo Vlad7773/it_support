@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useAppContext } from '../context/AppContext';
+import { useApp } from '../context/AppContext';
 import {
   ClockIcon,
   CheckCircleIcon,
@@ -9,7 +9,7 @@ import {
 } from '@heroicons/react/24/outline';
 
 const Tickets = () => {
-  const { tickets, workstations, addTicket, updateTicket, addRepair } = useAppContext();
+  const { tickets, workstations, users, addTicket, updateTicket, addRepair } = useApp();
   const [showAddModal, setShowAddModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');

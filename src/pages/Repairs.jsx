@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
-import { useAppContext } from '../context/AppContext';
+import { useApp } from '../context/AppContext';
 import {
   PlusIcon,
   MagnifyingGlassIcon,
 } from '@heroicons/react/24/outline';
 
 const Repairs = () => {
-  const { repairs, workstations, addRepair } = useAppContext();
+  const { repairs, workstations, users } = useApp();
   const [showAddModal, setShowAddModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import StatCard from '../components/dashboard/StatCard';
 import ChartCard from '../components/dashboard/ChartCard';
-import { useAppContext } from '../context/AppContext';
+import { useApp } from '../context/AppContext';
 import {
   ComputerDesktopIcon,
   UserGroupIcon,
@@ -10,7 +10,7 @@ import {
 } from '@heroicons/react/24/outline';
 
 const Dashboard = () => {
-  const { workstations, tickets, repairs } = useAppContext();
+  const { workstations, users, tickets, repairs } = useApp();
   const [stats, setStats] = useState([]);
   const [osData, setOsData] = useState({
     labels: [],

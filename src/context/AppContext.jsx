@@ -67,6 +67,36 @@ export const AppProvider = ({ children }) => {
     },
   ]);
 
+  const [users, setUsers] = useState([
+    {
+      id: 1,
+      username: 'admin',
+      password: 'admin123',
+      name: 'Адміністратор',
+      role: 'admin',
+      department: 'IT відділ',
+      email: 'admin@example.com',
+    },
+    {
+      id: 2,
+      username: 'user1',
+      password: 'user123',
+      name: 'Іванов Іван Іванович',
+      role: 'user',
+      department: 'IT відділ',
+      email: 'user1@example.com',
+    },
+    {
+      id: 3,
+      username: 'user2',
+      password: 'user123',
+      name: 'Петров Петро Петрович',
+      role: 'user',
+      department: 'Безпека',
+      email: 'user2@example.com',
+    },
+  ]);
+
   const addWorkstation = (workstation) => {
     setWorkstations([...workstations, workstation]);
   };
@@ -77,6 +107,17 @@ export const AppProvider = ({ children }) => {
 
   const addTicket = (ticket) => {
     setTickets([...tickets, ticket]);
+    
+    // Автоматично створюємо запис в ремонтах
+    const repair = {
+      id: `R-${String(repairs.length + 1).padStart(3, '0')}`,
+      workstation: ticket.workstation,
+      description: ticket.problem,
+      status: ticket.status,
+      technician: ticket.user,
+      date: ticket.date,
+    };
+    setRepairs([...repairs, repair]);
   };
 
   const updateTicket = (updatedTicket) => {
@@ -85,20 +126,19 @@ export const AppProvider = ({ children }) => {
     );
     setTickets(newTickets);
 
-    // Якщо заявка завершена, додаємо її до ремонтів
-    if (updatedTicket.status === 'Завершено') {
-      const repair = {
-        id: repairs.length + 1,
-        workstation: updatedTicket.workstation,
-        type: 'Ремонт',
-        status: 'Завершено',
-        user: updatedTicket.user,
-        date: updatedTicket.date,
-        problem: updatedTicket.problem,
-        solution: 'Ремонт виконано',
-      };
-      setRepairs([...repairs, repair]);
-    }
+    // Оновлюємо відповідний запис в ремонтах
+    const newRepairs = repairs.map(repair => {
+      if (repair.workstation === updatedTicket.workstation && 
+          repair.date === updatedTicket.date) {
+        return {
+          ...repair,
+          status: updatedTicket.status,
+          description: updatedTicket.problem,
+        };
+      }
+      return repair;
+    });
+    setRepairs(newRepairs);
   };
 
   const addRepair = (repair) => {
@@ -109,6 +149,7 @@ export const AppProvider = ({ children }) => {
     workstations,
     tickets,
     repairs,
+    users,
     addWorkstation,
     removeWorkstation,
     addTicket,

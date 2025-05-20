@@ -1,67 +1,89 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAppContext } from '../context/AppContext';
 
 const Login = () => {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
   const navigate = useNavigate();
+  const { users } = useAppContext();
+  const [formData, setFormData] = useState({
+    username: '',
+    password: '',
+  });
+  const [error, setError] = useState('');
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    // Тимчасово хардкодимо адміна для тестування
-    if (username === 'admin' && password === 'admin123') {
-      localStorage.setItem('user', JSON.stringify({
-        id: 1,
-        username: 'admin',
-        role: 'admin',
-        name: 'Адміністратор'
-      }));
-      navigate('/');
-    } else {
-      setError('Невірний логін або пароль');
+    setError('');
+
+    // Перевіряємо чи існує користувач
+    const user = users.find(u => u.username === formData.username);
+    
+    if (!user) {
+      setError('Користувача не знайдено');
+      return;
     }
+
+    // Перевіряємо пароль
+    if (user.password !== formData.password) {
+      setError('Невірний пароль');
+      return;
+    }
+
+    // Зберігаємо дані користувача в localStorage
+    localStorage.setItem('user', JSON.stringify({
+      id: user.id,
+      username: user.username,
+      name: user.name,
+      role: user.role,
+      department: user.department,
+    }));
+
+    // Перенаправляємо на головну сторінку
+    navigate('/');
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-dark-bg">
-      <div className="bg-dark-card p-8 rounded-lg shadow-lg w-96">
-        <h1 className="text-2xl font-bold text-white mb-6 text-center">Вхід в систему</h1>
-        {error && (
-          <div className="bg-red-500 text-white p-3 rounded-lg mb-4">
-            {error}
-          </div>
-        )}
-        <form onSubmit={handleSubmit}>
-          <div className="mb-4">
-            <label className="block text-dark-textSecondary mb-2" htmlFor="username">
-              Логін
-            </label>
+    <div className="min-h-screen bg-dark-bg flex items-center justify-center">
+      <div className="bg-dark-card p-8 rounded-lg shadow-card w-full max-w-md">
+        <div className="text-center mb-8">
+          <h1 className="text-2xl font-semibold text-white">Вхід в систему</h1>
+          <p className="text-dark-textSecondary mt-2">Введіть свої дані для входу</p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {error && (
+            <div className="bg-red-500/20 text-red-400 p-3 rounded-lg text-sm">
+              {error}
+            </div>
+          )}
+
+          <div>
+            <label className="block text-dark-textSecondary mb-2">Логін</label>
             <input
-              id="username"
               type="text"
-              className="w-full px-4 py-2 rounded-lg bg-dark-bg border border-dark-border text-white focus:outline-none focus:border-primary-400"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
+              value={formData.username}
+              onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+              className="w-full bg-dark-bg border border-dark-border rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+              placeholder="Введіть логін"
               required
             />
           </div>
-          <div className="mb-6">
-            <label className="block text-dark-textSecondary mb-2" htmlFor="password">
-              Пароль
-            </label>
+
+          <div>
+            <label className="block text-dark-textSecondary mb-2">Пароль</label>
             <input
-              id="password"
               type="password"
-              className="w-full px-4 py-2 rounded-lg bg-dark-bg border border-dark-border text-white focus:outline-none focus:border-primary-400"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              value={formData.password}
+              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+              className="w-full bg-dark-bg border border-dark-border rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+              placeholder="Введіть пароль"
               required
             />
           </div>
+
           <button
             type="submit"
-            className="w-full bg-primary-500 text-white py-2 rounded-lg hover:bg-primary-600 transition-colors"
+            className="w-full bg-primary-600 hover:bg-primary-700 text-white py-2 rounded-lg transition-colors"
           >
             Увійти
           </button>

@@ -1,5 +1,6 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { AppProvider } from './context/AppContext';
 import Layout from './components/layout/Layout';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
@@ -30,81 +31,76 @@ const AdminRoute = ({ children }) => {
 
 const App = () => {
   return (
-    <Router>
-      <Routes>
-        <Route path="/login" element={<Login />} />
-        <Route
-          path="/"
-          element={
-            <ProtectedRoute>
+    <AppProvider>
+      <Router>
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route
+            path="/"
+            element={
               <Layout>
                 <Dashboard />
               </Layout>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/workstations"
-          element={
-            <ProtectedRoute>
+            }
+          />
+          <Route
+            path="/workstations"
+            element={
               <Layout>
                 <Workstations />
               </Layout>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/tickets"
-          element={
-            <ProtectedRoute>
+            }
+          />
+          <Route
+            path="/tickets"
+            element={
               <Layout>
                 <Tickets />
               </Layout>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/repairs"
-          element={
-            <ProtectedRoute>
+            }
+          />
+          <Route
+            path="/repairs"
+            element={
               <Layout>
                 <Repairs />
               </Layout>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/users"
-          element={
-            <AdminRoute>
-              <Layout>
-                <Users />
-              </Layout>
-            </AdminRoute>
-          }
-        />
-        <Route
-          path="/reports"
-          element={
-            <ProtectedRoute>
-              <Layout>
-                <Reports />
-              </Layout>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/settings"
-          element={
-            <ProtectedRoute>
-              <Layout>
-                <Settings />
-              </Layout>
-            </ProtectedRoute>
-          }
-        />
-      </Routes>
-    </Router>
+            }
+          />
+          <Route
+            path="/users"
+            element={
+              <AdminRoute>
+                <Layout>
+                  <Users />
+                </Layout>
+              </AdminRoute>
+            }
+          />
+          <Route
+            path="/reports"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <Reports />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/settings"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <Settings />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </Router>
+    </AppProvider>
   );
 };
 

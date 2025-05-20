@@ -99,7 +99,7 @@ const Software = () => {
       id: workstations.length + 1,
       ...newWorkstationData,
       software: []
-    };
+        };
     setWorkstations([...workstations, newWorkstation]);
   };
 
@@ -176,9 +176,9 @@ const Software = () => {
 
         <div className="relative overflow-y-auto flex-1">
           <div className="table-container w-full" style={{ maxHeight: 'calc(100vh - 250px)' }}>
-            <table className="table-auto w-full">
-              <thead className="sticky top-0 bg-dark-card z-10">
-                <tr className="border-b border-dark-border">
+          <table className="table-auto w-full">
+            <thead className="sticky top-0 bg-dark-card z-10">
+              <tr className="border-b border-dark-border">
                   <th className="px-4 py-2 text-left" style={{ width: colWidths.id }}>ID</th>
                   <th className="px-4 py-2 text-left" style={{ width: colWidths.inventory_number }}>Інвентарний номер</th>
                   <th className="px-4 py-2 text-left" style={{ width: colWidths.department }}>Підрозділ</th>
@@ -186,9 +186,9 @@ const Software = () => {
                   <th className="px-4 py-2 text-left" style={{ width: colWidths.model }}>Модель</th>
                   <th className="px-4 py-2 text-left" style={{ width: colWidths.os }}>ОС</th>
                   <th className="px-4 py-2 text-left" style={{ width: colWidths.actions }}>Дії</th>
-                </tr>
-              </thead>
-              <tbody>
+              </tr>
+            </thead>
+            <tbody>
                 {filteredWorkstations.map((workstation) => (
                   <tr key={workstation.id} className="border-b border-dark-border hover:bg-dark-bg transition-colors duration-200">
                     <td className="py-3 px-4 text-white" style={{ width: colWidths.id, wordBreak: 'break-word' }}>{workstation.id}</td>
@@ -198,21 +198,21 @@ const Software = () => {
                     <td className="py-3 px-4 text-white" style={{ width: colWidths.model, wordBreak: 'break-word' }}>{workstation.model}</td>
                     <td className="py-3 px-4 text-white" style={{ width: colWidths.os, wordBreak: 'break-word' }}>{workstation.os}</td>
                     <td className="py-3 px-4" style={{ width: colWidths.actions }}>
-                      <button
-                        onClick={() => {
+                         <button
+                          onClick={() => {
                           setSelectedWorkstation(workstation);
                           setShowDetailsModal(true);
-                        }}
+                             }}
                         className="text-gray-400 hover:text-white transition-colors duration-200 text-2xl font-bold"
-                      >
+                        >
                         ☰
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                        </button>
+                                   </td>
+                                 </tr>
+                               ))}
+                             </tbody>
+                           </table>
+                         </div>
         </div>
       </div>
 
@@ -229,7 +229,7 @@ const Software = () => {
                 ✕
               </button>
             </div>
-            <div className="space-y-4">
+              <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-1">
@@ -353,8 +353,8 @@ const Software = () => {
                     </tbody>
                   </table>
                 </div>
-              </div>
-            </div>
+          </div>
+        </div>
             <div className="mt-6 flex justify-end space-x-3">
               <button
                 type="button"
@@ -381,7 +381,7 @@ const Software = () => {
                 ✕
               </button>
             </div>
-            <form onSubmit={(e) => {
+             <form onSubmit={(e) => {
               e.preventDefault();
               handleAddWorkstation(formData);
               setShowAddModal(false);
@@ -476,7 +476,7 @@ const Software = () => {
                       onChange={(e) => setFormData({ ...formData, processor: e.target.value })}
                     />
                   </div>
-                  <div>
+                <div>
                     <label className="block text-sm font-medium text-gray-300 mb-1">
                       ОЗП
                     </label>
@@ -487,8 +487,8 @@ const Software = () => {
                       value={formData.ram}
                       onChange={(e) => setFormData({ ...formData, ram: e.target.value })}
                     />
-                  </div>
-                  <div>
+                </div>
+                <div>
                     <label className="block text-sm font-medium text-gray-300 mb-1">
                       Накопичувач
                     </label>
@@ -499,8 +499,8 @@ const Software = () => {
                       value={formData.storage}
                       onChange={(e) => setFormData({ ...formData, storage: e.target.value })}
                     />
-                  </div>
-                  <div>
+                </div>
+                <div>
                     <label className="block text-sm font-medium text-gray-300 mb-1">
                       Операційна система
                     </label>

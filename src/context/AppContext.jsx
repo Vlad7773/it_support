@@ -15,21 +15,32 @@ export const AppProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // Додаємо стани для підрозділів та статусів робочих станцій
+  const [departments, setDepartments] = useState([]);
+  const [workstationStatuses, setWorkstationStatuses] = useState([]);
+
   // Завантаження даних
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [workstationsRes, usersRes, ticketsRes, repairsRes] = await Promise.all([
+      const [workstationsRes, usersRes, ticketsRes, repairsRes, departmentsRes, workstationStatusesRes] = await Promise.all([
         axios.get(`${API_URL}/workstations`),
         axios.get(`${API_URL}/users`),
         axios.get(`${API_URL}/tickets`),
-        axios.get(`${API_URL}/repairs`)
+        axios.get(`${API_URL}/repairs`),
+        // Додаємо запити до нових ендпоінтів
+        axios.get(`${API_URL}/departments`),
+        axios.get(`${API_URL}/workstationstatuses`)
       ]);
 
       setWorkstations(workstationsRes.data);
       setUsers(usersRes.data);
       setTickets(ticketsRes.data);
       setRepairs(repairsRes.data);
+      // Встановлюємо отримані дані у відповідні стани
+      setDepartments(departmentsRes.data);
+      setWorkstationStatuses(workstationStatusesRes.data);
+
       setError(null);
     } catch (err) {
       setError('Помилка завантаження даних');
@@ -182,6 +193,8 @@ export const AppProvider = ({ children }) => {
     repairs,
     loading,
     error,
+    departments,
+    workstationStatuses,
     addWorkstation,
     updateWorkstation,
     deleteWorkstation,

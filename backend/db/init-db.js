@@ -12,7 +12,7 @@ const dbPath = path.join(dataDir, 'it_support.db');
 const db = new sqlite3.Database(dbPath);
 
 // Read and parse SQL file
-const sql = fs.readFileSync(path.join(__dirname, 'init.sql'), 'utf8');
+const sql = fs.readFileSync(path.join(__dirname, 'init_sqlite.sql'), 'utf8');
 
 // Custom parser: collect CREATE TRIGGER ... END; as a single statement
 function splitSqlStatements(sql) {

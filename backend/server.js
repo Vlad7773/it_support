@@ -19,15 +19,24 @@ app.get('/api/workstations', (req, res) => {
   db.all(`
     SELECT 
       ws.id,
-      ws.name,
+      ws.inventory_number,
+      ws.ip_address,
+      ws.mac_address,
       ws.processor,
       ws.ram,
       ws.storage,
       ws.os,
-      ws.acquisition_date,
-      ws_status.name as status,
-      it_users.name as current_user,
-      departments.name as department
+      ws.monitor,
+      ws.network,
+      ws.contacts,
+      ws.notes,
+      ws.registration_date,
+      ws_status.id as status_id,
+      ws_status.name as status_name,
+      it_users.id as current_user_id,
+      it_users.name as current_user_name,
+      departments.id as department_id,
+      departments.name as department_name
     FROM workstations ws
     LEFT JOIN it_users ON ws.current_user_id = it_users.id
     LEFT JOIN departments ON ws.department_id = departments.id
@@ -42,11 +51,35 @@ app.get('/api/workstations', (req, res) => {
 });
 
 app.post('/api/workstations', (req, res) => {
-  const { name, processor, ram, storage, os, acquisition_date, status_id, current_user_id, department_id } = req.body;
+  const { 
+    inventory_number, 
+    ip_address, 
+    mac_address, 
+    processor, 
+    ram, 
+    storage, 
+    os, 
+    monitor, 
+    network, 
+    contacts, 
+    notes, 
+    registration_date, 
+    status_id, 
+    current_user_id, 
+    department_id 
+  } = req.body;
+  
   db.run(
-    `INSERT INTO workstations (name, processor, ram, storage, os, acquisition_date, status_id, current_user_id, department_id) 
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [name, processor, ram, storage, os, acquisition_date, status_id, current_user_id, department_id],
+    `INSERT INTO workstations (
+      inventory_number, ip_address, mac_address, processor, ram, storage, 
+      os, monitor, network, contacts, notes, registration_date, 
+      status_id, current_user_id, department_id
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      inventory_number, ip_address, mac_address, processor, ram, storage,
+      os, monitor, network, contacts, notes, registration_date,
+      status_id, current_user_id, department_id
+    ],
     function(err) {
       if (err) {
         console.error(err);
@@ -59,13 +92,47 @@ app.post('/api/workstations', (req, res) => {
 
 app.put('/api/workstations/:id', (req, res) => {
   const { id } = req.params;
-  const { name, processor, ram, storage, os, acquisition_date, status_id, current_user_id, department_id } = req.body;
+  const { 
+    inventory_number, 
+    ip_address, 
+    mac_address, 
+    processor, 
+    ram, 
+    storage, 
+    os, 
+    monitor, 
+    network, 
+    contacts, 
+    notes, 
+    registration_date, 
+    status_id, 
+    current_user_id, 
+    department_id 
+  } = req.body;
+  
   db.run(
     `UPDATE workstations 
-     SET name = ?, processor = ?, ram = ?, storage = ?, os = ?, acquisition_date = ?, 
-         status_id = ?, current_user_id = ?, department_id = ?
+     SET inventory_number = ?, 
+         ip_address = ?, 
+         mac_address = ?, 
+         processor = ?, 
+         ram = ?, 
+         storage = ?, 
+         os = ?, 
+         monitor = ?, 
+         network = ?, 
+         contacts = ?, 
+         notes = ?, 
+         registration_date = ?, 
+         status_id = ?, 
+         current_user_id = ?, 
+         department_id = ?
      WHERE id = ?`,
-    [name, processor, ram, storage, os, acquisition_date, status_id, current_user_id, department_id, id],
+    [
+      inventory_number, ip_address, mac_address, processor, ram, storage,
+      os, monitor, network, contacts, notes, registration_date,
+      status_id, current_user_id, department_id, id
+    ],
     function(err) {
       if (err) {
         console.error(err);
@@ -90,6 +157,20 @@ app.delete('/api/workstations/:id', (req, res) => {
       return res.status(404).json({ error: 'Workstation not found' });
     }
     res.json({ message: 'Workstation deleted successfully' });
+  });
+});
+
+// Workstation Statuses routes
+app.get('/api/workstationstatuses', (req, res) => {
+  db.all(`
+    SELECT id, name
+    FROM workstation_statuses
+  `, [], (err, rows) => {
+    if (err) {
+      console.error(err);
+      return res.status(500).json({ error: 'Internal server error' });
+    }
+    res.json(rows);
   });
 });
 
@@ -122,6 +203,20 @@ app.post('/api/users', (req, res) => {
       res.json({ id: this.lastID, ...req.body });
     }
   );
+});
+
+// Departments routes
+app.get('/api/departments', (req, res) => {
+  db.all(`
+    SELECT id, name
+    FROM departments
+  `, [], (err, rows) => {
+    if (err) {
+      console.error(err);
+      return res.status(500).json({ error: 'Internal server error' });
+    }
+    res.json(rows);
+  });
 });
 
 // Tickets routes

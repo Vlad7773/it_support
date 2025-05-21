@@ -10,7 +10,7 @@ import {
 } from '@heroicons/react/24/outline';
 
 const Dashboard = () => {
-  const { workstations, users, tickets, repairs } = useApp();
+  const { workstations, tickets, repairs } = useApp();
   const [stats, setStats] = useState([]);
   const [osData, setOsData] = useState({
     labels: [],
@@ -30,16 +30,6 @@ const Dashboard = () => {
         'rgba(153, 102, 255, 1)',
       ],
       borderWidth: 1,
-    }],
-  });
-  const [monthlyData, setMonthlyData] = useState({
-    labels: ['Січ', 'Лют', 'Бер', 'Кві', 'Тра', 'Чер'],
-    datasets: [{
-      label: 'Нові заявки',
-      data: [0, 0, 0, 0, 0, 0],
-      borderColor: 'rgb(75, 192, 192)',
-      backgroundColor: 'rgba(75, 192, 192, 0.5)',
-      tension: 0.4,
     }],
   });
   const [repairsData, setRepairsData] = useState({
@@ -94,7 +84,7 @@ const Dashboard = () => {
 
     // Оновлюємо дані по ОС
     const osCounts = workstations.reduce((acc, w) => {
-      acc[w.os] = (acc[w.os] || 0) + 1;
+      acc[w.os_name] = (acc[w.os_name] || 0) + 1;
       return acc;
     }, {});
 
@@ -123,7 +113,7 @@ const Dashboard = () => {
 
     // Оновлюємо дані по відділах
     const departmentData = workstations.reduce((acc, w) => {
-      acc[w.department] = (acc[w.department] || 0) + 1;
+      acc[w.department_name] = (acc[w.department_name] || 0) + 1;
       return acc;
     }, {});
 
@@ -165,12 +155,6 @@ const Dashboard = () => {
           subtitle="Статистика операційних систем"
           data={osData}
           type="bar"
-        />
-        <ChartCard
-          title="Заявки за місяцями"
-          subtitle="Динаміка нових заявок"
-          data={monthlyData}
-          type="line"
         />
       </div>
 

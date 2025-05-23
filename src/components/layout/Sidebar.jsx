@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { FaBars } from 'react-icons/fa';
+import { FaBars, FaCube } from 'react-icons/fa';
 
 const Sidebar = () => {
   const navigate = useNavigate();
@@ -12,11 +12,12 @@ const Sidebar = () => {
     navigate('/login');
   };
 
-  const menuItems = [
+  let menuItems = [
     { path: '/', label: 'Головна', icon: '📊' },
     { path: '/workstations', label: 'АРМ', icon: '💻' },
     { path: '/tickets', label: 'Заявки', icon: '🎫' },
     { path: '/repairs', label: 'Ремонти', icon: '🔧' },
+    { path: '/software', label: 'ПЗ', icon: <FaCube /> },
     { path: '/reports', label: 'Звіти', icon: '📈' },
     { path: '/settings', label: 'Налаштування', icon: '⚙️' },
   ];

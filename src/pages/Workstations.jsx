@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { FaDesktop, FaLaptop, FaRegWindowMaximize } from 'react-icons/fa';
 
 const Workstations = () => {
   const [workstations, setWorkstations] = useState([]);
@@ -29,7 +30,8 @@ const Workstations = () => {
     storage: '',
     os: '',
     monitor: '',
-    network: ''
+    network: '',
+    type: 'Десктоп'
   });
 
   useEffect(() => {
@@ -92,7 +94,8 @@ const Workstations = () => {
       storage: '',
       os: '',
       monitor: '',
-      network: ''
+      network: '',
+      type: 'Десктоп'
     });
   };
 
@@ -123,7 +126,8 @@ const Workstations = () => {
       storage: '',
       os: '',
       monitor: '',
-      network: ''
+      network: '',
+      type: 'Десктоп'
     });
   };
 
@@ -227,7 +231,7 @@ const Workstations = () => {
             <table className="table-auto w-full">
               <thead className="sticky top-0 bg-dark-card z-10">
                 <tr className="border-b border-dark-border">
-                  <th className="px-4 py-2 text-left" style={{ width: '5%' }}>ID</th>
+                  <th className="px-4 py-2 text-left" style={{ width: '8%' }}>ID</th>
                   <th className="px-4 py-2 text-left" style={{ width: '15%' }}>Інвентарний номер</th>
                   <th className="px-4 py-2 text-left" style={{ width: '10%' }}>IP адреса</th>
                   <th className="px-4 py-2 text-left" style={{ width: '15%' }}>MAC адреса</th>
@@ -241,11 +245,16 @@ const Workstations = () => {
               <tbody>
                 {filteredWorkstations.map((ws) => (
                   <tr key={ws.id} className="border-b border-dark-border hover:bg-dark-bg transition-colors duration-200">
-                    <td className="py-3 px-4 text-white" style={{ width: '5%', wordBreak: 'break-word' }}>{ws.id}</td>
+                    <td className="py-3 px-4 text-white flex items-center" style={{ width: '8%', wordBreak: 'break-word' }}>
+                      {ws.type === 'Десктоп' && <FaDesktop className="mr-2 text-gray-400" title="Десктоп" />}
+                      {ws.type === 'Ноутбук' && <FaLaptop className="mr-2 text-gray-400" title="Ноутбук" />}
+                      {ws.type === 'Моноблок' && <FaRegWindowMaximize className="mr-2 text-gray-400" title="Моноблок" />}
+                      <span className="text-white">{ws.id}</span>
+                    </td>
                     <td className="py-3 px-4 text-white" style={{ width: '15%', wordBreak: 'break-word' }}>{ws.inventory_number}</td>
                     <td className="py-3 px-4 text-white" style={{ width: '10%', wordBreak: 'break-word' }}>{ws.ip_address}</td>
                     <td className="py-3 px-4 text-white" style={{ width: '15%', wordBreak: 'break-word' }}>{ws.mac_address}</td>
-                    <td className="py-3 px-4" style={{ width: '15%', wordBreak: 'break-word' }}>{ws.grif}</td>
+                    <td className="py-3 px-4 text-white" style={{ width: '15%', wordBreak: 'break-word' }}>{ws.grif}</td>
                     <td className="py-3 px-4 text-white" style={{ width: '15%', wordBreak: 'break-word' }}>{ws.department}</td>
                     <td className="py-3 px-4 text-white" style={{ width: '15%', wordBreak: 'break-word' }}>{ws.responsible}</td>
                     <td className="py-3 px-4 text-white" style={{ width: '10%', wordBreak: 'break-word' }}>{ws.contacts}</td>
@@ -381,6 +390,18 @@ const Workstations = () => {
                           required
                         />
                       </div>
+                    </div>
+                    <div className="mb-4">
+                      <label className="block text-dark-textSecondary mb-2">Тип АРМ</label>
+                      <select
+                        className="w-full bg-dark-bg border border-dark-border rounded-lg px-4 py-2 text-white"
+                        value={formData.type}
+                        onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+                      >
+                        <option value="Десктоп">Десктоп</option>
+                        <option value="Ноутбук">Ноутбук</option>
+                        <option value="Моноблок">Моноблок</option>
+                      </select>
                     </div>
                   </>
                 )}
@@ -628,6 +649,18 @@ const Workstations = () => {
                           required
                         />
                       </div>
+                    </div>
+                    <div className="mb-4">
+                      <label className="block text-dark-textSecondary mb-2">Тип АРМ</label>
+                      <select
+                        className="w-full bg-dark-bg border border-dark-border rounded-lg px-4 py-2 text-white"
+                        value={formData.type}
+                        onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+                      >
+                        <option value="Десктоп">Десктоп</option>
+                        <option value="Ноутбук">Ноутбук</option>
+                        <option value="Моноблок">Моноблок</option>
+                      </select>
                     </div>
                   </>
                 )}
@@ -902,10 +935,9 @@ const Workstations = () => {
               <button
                 type="button"
                 onClick={() => {
-                  if (window.confirm('Ви впевнені, що хочете видалити цей АРМ?')) {
-                    handleDelete();
-                    setShowDetailsModal(false);
-                  }
+                  // If using a modal for confirmation, show the modal instead of window.confirm
+                  setShowDeleteModal(true);
+                  setShowDetailsModal(false); // Close details modal when opening delete confirmation
                 }}
                 className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
               >

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import StatCard from '../components/dashboard/StatCard';
 import ChartCard from '../components/dashboard/ChartCard';
-import { useApp } from '../context/AppContext';
+// import { useApp } from '../context/AppContext';
 import {
   ComputerDesktopIcon,
   UserGroupIcon,
@@ -10,7 +10,10 @@ import {
 } from '@heroicons/react/24/outline';
 
 const Dashboard = () => {
-  const { workstations, tickets, repairs } = useApp();
+  // const { workstations, tickets, repairs } = useApp();
+  const [workstations, setWorkstations] = useState([]);
+  const [tickets, setTickets] = useState([]);
+  const [repairs, setRepairs] = useState([]);
   const [stats, setStats] = useState([]);
   const [osData, setOsData] = useState({
     labels: [],
@@ -42,97 +45,179 @@ const Dashboard = () => {
       borderWidth: 1,
     }],
   });
+  const [ticketPriorityData, setTicketPriorityData] = useState({
+    labels: [],
+    datasets: [{
+      label: 'Кількість тікетів',
+      data: [],
+      backgroundColor: [
+        'rgba(255, 99, 132, 0.8)',  // Критичний - червоний
+        'rgba(255, 159, 64, 0.8)',  // Високий - оранжевий
+        'rgba(255, 205, 86, 0.8)',  // Середній - жовтий
+        'rgba(75, 192, 192, 0.8)',  // Низький - блакитний
+      ],
+      borderColor: [
+        'rgba(255, 99, 132, 1)',
+        'rgba(255, 159, 64, 1)',
+        'rgba(255, 205, 86, 1)',
+        'rgba(75, 192, 192, 1)',
+      ],
+      borderWidth: 1,
+    }],
+  });
   const [recentTickets, setRecentTickets] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
-    // Оновлюємо статистику
-    const totalArms = workstations.length;
-    const activeUsers = new Set(workstations.map(w => w.responsible)).size;
-    const repairsInProgress = repairs.filter(r => r.status === 'В процесі').length;
-    const openTickets = tickets.filter(t => t.status === 'В очікуванні').length;
+    const fetchData = async () => {
+      try {
+        const [workstationsRes, ticketsRes, repairsRes] = await Promise.all([
+          fetch('/api/workstations'),
+          fetch('/api/tickets'),
+          fetch('/api/repairs')
+        ]);
 
-    setStats([
-      {
-        title: 'Всього АРМ',
-        value: totalArms.toString(),
-        color: 'blue',
-        icon: ComputerDesktopIcon,
-        change: '0%',
-      },
-      {
-        title: 'Активні користувачі',
-        value: activeUsers.toString(),
-        color: 'green',
-        icon: UserGroupIcon,
-        change: '0%',
-      },
-      {
-        title: 'На ремонті',
-        value: repairsInProgress.toString(),
-        color: 'red',
-        icon: WrenchScrewdriverIcon,
-        change: '0%',
-      },
-      {
-        title: 'Відкриті заявки',
-        value: openTickets.toString(),
-        color: 'yellow',
-        icon: ClipboardDocumentListIcon,
-        change: '0%',
-      },
-    ]);
+        const [workstationsData, ticketsData, repairsData] = await Promise.all([
+          workstationsRes.json(),
+          ticketsRes.json(),
+          repairsRes.json()
+        ]);
 
-    // Оновлюємо дані по ОС
-    const osCounts = workstations.reduce((acc, w) => {
-      acc[w.os_name] = (acc[w.os_name] || 0) + 1;
-      return acc;
-    }, {});
+        setWorkstations(workstationsData);
+        setTickets(ticketsData);
+        setRepairs(repairsData);
 
-    setOsData({
-      labels: Object.keys(osCounts),
-      datasets: [
-        {
-          label: 'Кількість АРМ',
-          data: Object.values(osCounts),
-          backgroundColor: [
-            'rgba(54, 162, 235, 0.8)',
-            'rgba(75, 192, 192, 0.8)',
-            'rgba(255, 206, 86, 0.8)',
-            'rgba(153, 102, 255, 0.8)',
+        // Оновлюємо статистику
+        const totalArms = workstationsData.length;
+        const activeUsers = new Set(workstationsData.map(w => w.responsible)).size;
+        const repairsInProgress = repairsData.filter(r => r.status === 'В процесі').length;
+        const openTickets = ticketsData.filter(t => t.status === 'В очікуванні').length;
+
+        setStats([
+          {
+            title: 'Всього АРМ',
+            value: totalArms.toString(),
+            color: 'blue',
+            icon: ComputerDesktopIcon,
+          },
+          {
+            title: 'Активні користувачі',
+            value: activeUsers.toString(),
+            color: 'green',
+            icon: UserGroupIcon,
+          },
+          {
+            title: 'На ремонті',
+            value: repairsInProgress.toString(),
+            color: 'red',
+            icon: WrenchScrewdriverIcon,
+          },
+          {
+            title: 'Відкриті заявки',
+            value: openTickets.toString(),
+            color: 'yellow',
+            icon: ClipboardDocumentListIcon,
+          },
+        ]);
+
+        // Оновлюємо дані по ОС
+        const osCounts = workstationsData.reduce((acc, w) => {
+          acc[w.os_name] = (acc[w.os_name] || 0) + 1;
+          return acc;
+        }, {});
+
+        setOsData({
+          labels: Object.keys(osCounts),
+          datasets: [
+            {
+              label: 'Кількість АРМ',
+              data: Object.values(osCounts),
+              backgroundColor: [
+                'rgba(54, 162, 235, 0.8)',
+                'rgba(75, 192, 192, 0.8)',
+                'rgba(255, 206, 86, 0.8)',
+                'rgba(153, 102, 255, 0.8)',
+              ],
+              borderColor: [
+                'rgba(54, 162, 235, 1)',
+                'rgba(75, 192, 192, 1)',
+                'rgba(255, 206, 86, 1)',
+                'rgba(153, 102, 255, 1)',
+              ],
+              borderWidth: 1,
+            },
           ],
-          borderColor: [
-            'rgba(54, 162, 235, 1)',
-            'rgba(75, 192, 192, 1)',
-            'rgba(255, 206, 86, 1)',
-            'rgba(153, 102, 255, 1)',
+        });
+
+        // Оновлюємо дані по відділах
+        const departmentData = workstationsData.reduce((acc, w) => {
+          acc[w.department_name] = (acc[w.department_name] || 0) + 1;
+          return acc;
+        }, {});
+
+        setRepairsData({
+          labels: Object.keys(departmentData),
+          datasets: [
+            {
+              label: 'Кількість АРМ',
+              data: Object.values(departmentData),
+              backgroundColor: 'rgba(255, 99, 132, 0.8)',
+              borderColor: 'rgba(255, 99, 132, 1)',
+              borderWidth: 1,
+            },
           ],
-          borderWidth: 1,
-        },
-      ],
-    });
+        });
 
-    // Оновлюємо дані по відділах
-    const departmentData = workstations.reduce((acc, w) => {
-      acc[w.department_name] = (acc[w.department_name] || 0) + 1;
-      return acc;
-    }, {});
+        // Оновлюємо дані по пріоритетах тікетів
+        const priorityCounts = ticketsData.reduce((acc, t) => {
+          acc[t.priority] = (acc[t.priority] || 0) + 1;
+          return acc;
+        }, {});
 
-    setRepairsData({
-      labels: Object.keys(departmentData),
-      datasets: [
-        {
-          label: 'Кількість АРМ',
-          data: Object.values(departmentData),
-          backgroundColor: 'rgba(255, 99, 132, 0.8)',
-          borderColor: 'rgba(255, 99, 132, 1)',
-          borderWidth: 1,
-        },
-      ],
-    });
+        setTicketPriorityData({
+          labels: Object.keys(priorityCounts),
+          datasets: [
+            {
+              label: 'Кількість тікетів',
+              data: Object.values(priorityCounts),
+              backgroundColor: [
+                'rgba(255, 99, 132, 0.8)',  // Критичний - червоний
+                'rgba(255, 159, 64, 0.8)',  // Високий - оранжевий
+                'rgba(255, 205, 86, 0.8)',  // Середній - жовтий
+                'rgba(75, 192, 192, 0.8)',  // Низький - блакитний
+              ],
+              borderColor: [
+                'rgba(255, 99, 132, 1)',
+                'rgba(255, 159, 64, 1)',
+                'rgba(255, 205, 86, 1)',
+                'rgba(75, 192, 192, 1)',
+              ],
+              borderWidth: 1,
+            },
+          ],
+        });
 
-    // Оновлюємо останні заявки
-    setRecentTickets(tickets.slice(-3));
-  }, [workstations, tickets, repairs]);
+        // Оновлюємо останні заявки
+        setRecentTickets(ticketsData.slice(-3));
+        setLoading(false);
+      } catch (err) {
+        console.error('Failed to fetch dashboard data:', err);
+        setError('Не вдалося завантажити дані дашборду');
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  if (loading) {
+    return <div className="p-6 text-white">Завантаження...</div>;
+  }
+
+  if (error) {
+    return <div className="p-6 text-red-500">Помилка: {error}</div>;
+  }
 
   return (
     <div className="p-6">
@@ -144,7 +229,6 @@ const Dashboard = () => {
             value={stat.value}
             color={stat.color}
             icon={stat.icon}
-            change={stat.change}
           />
         ))}
       </div>
@@ -155,6 +239,12 @@ const Dashboard = () => {
           subtitle="Статистика операційних систем"
           data={osData}
           type="bar"
+        />
+        <ChartCard
+          title="Пріоритети тікетів"
+          subtitle="Розподіл тікетів за пріоритетами"
+          data={ticketPriorityData}
+          type="pie"
         />
       </div>
 
@@ -174,6 +264,7 @@ const Dashboard = () => {
                   <th className="text-left py-3 px-4 text-dark-textSecondary">ID</th>
                   <th className="text-left py-3 px-4 text-dark-textSecondary">Тип</th>
                   <th className="text-left py-3 px-4 text-dark-textSecondary">Статус</th>
+                  <th className="text-left py-3 px-4 text-dark-textSecondary">Пріоритет</th>
                   <th className="text-left py-3 px-4 text-dark-textSecondary">Користувач</th>
                   <th className="text-left py-3 px-4 text-dark-textSecondary">Дата</th>
                 </tr>
@@ -184,6 +275,7 @@ const Dashboard = () => {
                     <td className="py-3 px-4 text-white">{ticket.id}</td>
                     <td className="py-3 px-4 text-white">{ticket.type}</td>
                     <td className="py-3 px-4 text-white">{ticket.status}</td>
+                    <td className="py-3 px-4 text-white">{ticket.priority}</td>
                     <td className="py-3 px-4 text-white">{ticket.user}</td>
                     <td className="py-3 px-4 text-white">{ticket.date}</td>
                   </tr>

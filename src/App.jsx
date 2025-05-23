@@ -8,6 +8,7 @@ import Workstations from './pages/Workstations';
 import Tickets from './pages/Tickets';
 import Repairs from './pages/Repairs';
 import Users from './pages/Users';
+import Software from './pages/Software';
 
 // Тимчасові компоненти для інших сторінок
 const Reports = () => <div className="text-white">Сторінка звітів</div>;
@@ -64,6 +65,14 @@ const App = () => {
             element={
               <Layout>
                 <Repairs />
+              </Layout>
+            }
+          />
+          <Route
+            path="/software"
+            element={
+              <Layout>
+                <Software />
               </Layout>
             }
           />

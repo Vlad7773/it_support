@@ -4,7 +4,7 @@
 
 @layer base {
   body {
-    @apply bg-dark-bg text-dark-text;
+    @apply bg-gray-900 text-white;
   }
 }
 
@@ -14,14 +14,14 @@
   }
   
   .btn-primary {
-    @apply bg-primary-500 text-white hover:bg-primary-600;
+    @apply bg-blue-500 text-white hover:bg-blue-600;
   }
   
   .btn-secondary {
-    @apply bg-dark-card text-white hover:bg-dark-border border border-dark-border;
+    @apply bg-gray-700 text-white hover:bg-gray-600 border border-gray-600;
   }
   
   .input {
-    @apply bg-dark-card border border-dark-border rounded-lg px-4 py-2 text-white focus:outline-none focus:border-primary-400;
+    @apply bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-400;
   }
 } 

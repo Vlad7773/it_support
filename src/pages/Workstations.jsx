@@ -32,42 +32,36 @@ const Workstations = () => {
     network: ''
   });
 
-  // Generate 20 mock workstations
-  const generateMockWorkstations = () => {
-    const mockData = [];
-    const grifs = ['ДСК', 'Особливої важливості', 'Цілком таємно', 'Таємно'];
-    const departments = ['IT відділ', 'Безпека', 'Адміністрація', 'Бухгалтерія', 'Кадри'];
-    const names = ['Іванов Іван Іванович', 'Петров Петро Петрович', 'Сидорова Марія Іванівна', 'Коваленко Олена Василівна', 'Мельник Олег Андрійович'];
-
-    for (let i = 1; i <= 20; i++) {
-      mockData.push({
-        id: i,
-        inventory_number: `АРМ-${String(i).padStart(3, '0')}`,
-        ip_address: `192.168.1.${100 + i}`,
-        mac_address: `00:1A:2B:3C:4D:${String(i).padStart(2, '0')}`,
-        grif: grifs[i % grifs.length],
-        department: departments[i % departments.length],
-        responsible: names[i % names.length],
-        contacts: `+38050${String(123456789 + i).slice(-7)}`,
-        notes: i % 3 === 0 ? `Примітка для АРМ-${String(i).padStart(3, '0')}` : '',
-        registration_date: `2024-01-${String(i).padStart(2, '0')}`
-      });
-    }
-    return mockData;
-  };
-
   useEffect(() => {
     setLoading(true);
-    try {
-      const mockWorkstations = generateMockWorkstations();
-      setTimeout(() => {
-        setWorkstations(mockWorkstations);
+    // try {
+    //   const mockWorkstations = generateMockWorkstations();
+    //   setTimeout(() => {
+    //     setWorkstations(mockWorkstations);
+    //     setLoading(false);
+    //   }, 500);
+    // } catch (err) {
+    //   setError(err.message);
+    //   setLoading(false);
+    // }
+
+    // Fetch data from the backend
+    fetch('/api/workstations')
+      .then(response => {
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+      })
+      .then(data => {
+        setWorkstations(data);
         setLoading(false);
-      }, 500);
-    } catch (err) {
-      setError(err.message);
-      setLoading(false);
-    }
+      })
+      .catch(error => {
+        setError(error.message);
+        setLoading(false);
+      });
+
   }, []);
 
   const handleAdd = (e) => {

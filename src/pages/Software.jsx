@@ -1,96 +1,99 @@
 import React, { useState, useEffect } from 'react';
-// Можливо, тут будуть потрібні іконки пізніше, поки що залишаю коментар
-// import { ComputerDesktopIcon, WrenchScrewdriverIcon, ClockIcon, CheckCircleIcon, XCircleIcon } from '@heroicons/react/24/outline';
+import { useApp } from '../context/AppContext'; // Імпорт useApp
 
 const Software = () => {
-  const [workstations, setWorkstations] = useState([]);
+  const {
+
+    workstations,
+    loading: loadingWorkstationsFromContext,
+    error: errorWorkstationsFromContext,
+    selectedWorkstationSoftware, // Використовуємо з AppContext
+    loadingSoftware: loadingSoftwareFromContext, // Використовуємо з AppContext
+    errorSoftware: errorSoftwareFromContext, // Використовуємо з AppContext
+    fetchSoftwareForWorkstation, // Функція для завантаження ПЗ для станції
+    addSoftwareToWorkstation,    // Функція для додавання ПЗ до станції (заглушка)
+    updateInstalledSoftware,     // Функція для оновлення встановленого ПЗ (заглушка)
+    deleteInstalledSoftware      // Функція для видалення встановленого ПЗ (заглушка)
+  } = useApp();
+
   const [selectedWorkstationId, setSelectedWorkstationId] = useState('');
-  const [installedSoftware, setInstalledSoftware] = useState([]);
-  const [loadingWorkstations, setLoadingWorkstations] = useState(true);
-  const [loadingSoftware, setLoadingSoftware] = useState(false);
-  const [errorWorkstations, setErrorWorkstations] = useState(null);
-  const [errorSoftware, setErrorSoftware] = useState(null);
+  // Локальні стани для ПЗ більше не потрібні, вони керуються AppContext
+  // const [installedSoftware, setInstalledSoftware] = useState([]);
+  // const [loadingSoftware, setLoadingSoftware] = useState(false);
+  // const [errorSoftware, setErrorSoftware] = useState(null);
 
-  // Fetch list of all workstations for the select dropdown
-  useEffect(() => {
-    setLoadingWorkstations(true);
-    fetch('/api/workstations')
-      .then(response => {
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        return response.json();
-      })
-      .then(data => {
-        setWorkstations(data);
-        setLoadingWorkstations(false);
-      })
-      .catch(error => {
-        setErrorWorkstations(error.message);
-        setLoadingWorkstations(false);
-      });
-  }, []); // Empty dependency array means this runs once on mount
-
-  // Fetch installed software for the selected workstation
+  // Завантаження ПЗ для обраної станції
   useEffect(() => {
     if (!selectedWorkstationId) {
-      setInstalledSoftware([]); // Clear list if no workstation is selected
+      // Можливо, очистити selectedWorkstationSoftware в AppContext, якщо потрібно
       return;
     }
 
-    setLoadingSoftware(true);
-    // NOTE: This endpoint /api/workstations/:id/software needs to be implemented on the backend
-    fetch(`/api/workstations/${selectedWorkstationId}/software`)
-      .then(response => {
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        return response.json();
-      })
-      .then(data => {
-        setInstalledSoftware(data);
-        setLoadingSoftware(false);
-      })
-      .catch(error => {
-        setErrorSoftware(error.message);
-        setLoadingSoftware(false);
-      });
-
-  }, [selectedWorkstationId]); // Rerun when selectedWorkstationId changes
+    // Викликаємо функцію з AppContext
+    fetchSoftwareForWorkstation(selectedWorkstationId);
+  }, [selectedWorkstationId, fetchSoftwareForWorkstation]);
 
   const handleWorkstationSelect = (event) => {
     setSelectedWorkstationId(event.target.value);
   };
 
-  // Placeholder functions for future functionality
-  const handleAddSoftware = () => {
-    console.log('Add Software clicked');
-    // TODO: Implement modal/form to add software to selectedWorkstationId
+  const handleAddSoftware = async () => {
+    // TODO: Реалізувати модальне вікно для введення даних нового ПЗ
+    // const newSoftwareData = { name: 'New App', version: '1.0', installed_date: new Date().toISOString().split('T')[0], manufacturer: 'Some Corp' };
+    // if (selectedWorkstationId && addSoftwareToWorkstation) {
+    //   try {
+    //     await addSoftwareToWorkstation(selectedWorkstationId, newSoftwareData);
+    //     // AppContext повинен автоматично оновити selectedWorkstationSoftware
+    //   } catch (err) {
+    //     alert(`Помилка додавання ПЗ: ${err.message}`);
+    //   }
+    // }
+    console.log('Add Software clicked for workstation:', selectedWorkstationId);
+    alert('Функціонал додавання ПЗ ще не реалізовано.');
   };
 
-  const handleEditInstalledSoftware = (softwareId) => {
-    console.log(`Edit installed software ${softwareId}`);
-    // TODO: Implement modal/form to edit details of installed software
+  const handleEditInstalledSoftware = async (softwareEntry) => {
+    // TODO: Реалізувати модальне вікно для редагування даних ПЗ
+    // const updatedSoftwareData = { ...softwareEntry, version: '1.1' }; // Приклад
+    // if (updateInstalledSoftware) {
+    //   try {
+    //     await updateInstalledSoftware(softwareEntry.id, updatedSoftwareData); // Припускаємо, що softwareEntry має id
+    //     // AppContext повинен автоматично оновити selectedWorkstationSoftware
+    //   } catch (err) {
+    //     alert(`Помилка оновлення ПЗ: ${err.message}`);
+    //   }
+    // }
+    console.log(`Edit installed software ${softwareEntry.id}`, softwareEntry);
+    alert('Функціонал редагування ПЗ ще не реалізовано.');
   };
 
-  const handleDeleteInstalledSoftware = (softwareId) => {
-    console.log(`Delete installed software ${softwareId}`);
-    // TODO: Implement delete logic (API call)
+  const handleDeleteInstalledSoftware = async (softwareEntryId) => {
+    // if (deleteInstalledSoftware) {
+    //   if (window.confirm('Ви впевнені, що хочете видалити це ПЗ?')) {
+    //     try {
+    //       await deleteInstalledSoftware(softwareEntryId);
+    //       // AppContext повинен автоматично оновити selectedWorkstationSoftware
+    //     } catch (err) {
+    //       alert(`Помилка видалення ПЗ: ${err.message}`);
+    //     }
+    //   }
+    // }
+    console.log(`Delete installed software ${softwareEntryId}`);
+    alert('Функціонал видалення ПЗ ще не реалізовано.');
   };
 
-  if (loadingWorkstations) {
-    return <div className="p-6 text-white">Завантаження...</div>;
+  if (loadingWorkstationsFromContext) {
+    return <div className="p-6 text-white">Завантаження АРМ...</div>;
   }
 
-  if (errorWorkstations) {
-    return <div className="p-6 text-red-500">Помилка: {errorWorkstations}</div>;
+  if (errorWorkstationsFromContext) {
+    return <div className="p-6 text-red-500">Помилка завантаження АРМ: {errorWorkstationsFromContext}</div>;
   }
 
   return (
     <div className="p-6 flex flex-col h-full bg-dark-bg text-white">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Програмне забезпечення</h1>
-        {/* Кнопка "Оберіть АРМ" для скидання вибору або переходу до вибору */}
         {selectedWorkstationId && (
            <button
              onClick={() => setSelectedWorkstationId('')}
@@ -101,7 +104,6 @@ const Software = () => {
         )}
       </div>
 
-      {/* Workstation Select */}
       {!selectedWorkstationId && (
         <div className="mb-6">
           <label htmlFor="workstation-select" className="block text-dark-textSecondary mb-2">Оберіть АРМ:</label>
@@ -110,20 +112,16 @@ const Software = () => {
             className="bg-dark-card border border-dark-border rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
             value={selectedWorkstationId}
             onChange={handleWorkstationSelect}
-            disabled={loadingWorkstations}
+            disabled={loadingWorkstationsFromContext}
           >
             <option value="">-- Оберіть АРМ --</option>
-            {/* Опції завантаження/помилки для випадаючого списку */}
-            {loadingWorkstations && <option value="" disabled>Завантаження АРМ...</option>}
-            {errorWorkstations && <option value="" disabled>Помилка завантаження АРМ</option>}
-            {/* Список АРМів */}
             {workstations.map(ws => (
               <option key={ws.id} value={ws.id}>
-                {ws.inventory_number} - {ws.ip_address}
+                {ws.inventory_number} - {ws.ip_address} ({ws.department?.name})
               </option>
             ))}
           </select>
-          {errorWorkstations && <p className="text-red-500 mt-2">Помилка: {errorWorkstations}</p>}
+          {errorWorkstationsFromContext && <p className="text-red-500 mt-2">Помилка: {errorWorkstationsFromContext}</p>}
         </div>
       )}
 
@@ -142,15 +140,13 @@ const Software = () => {
              </button>
           </div>
 
-          {/* Відображення стану завантаження, помилки або порожнього списку ПЗ */}
-          {loadingSoftware ? (
+          {loadingSoftwareFromContext ? (
             <div className="p-6 text-white">Завантаження ПЗ...</div>
-          ) : errorSoftware ? (
-            <div className="p-6 text-red-500">Помилка завантаження ПЗ: {errorSoftware}</div>
-          ) : installedSoftware.length === 0 ? (
+          ) : errorSoftwareFromContext ? (
+            <div className="p-6 text-red-500">Помилка завантаження ПЗ: {errorSoftwareFromContext}</div>
+          ) : selectedWorkstationSoftware.length === 0 ? (
             <div className="p-6 text-dark-textSecondary">На цьому АРМ немає встановленого ПЗ.</div>
           ) : (
-            // Таблиця встановленого ПЗ
             <div className="relative overflow-y-auto flex-1">
               <table className="table-auto w-full">
                 <thead className="sticky top-0 bg-dark-card z-10">
@@ -158,27 +154,30 @@ const Software = () => {
                     <th className="px-4 py-2 text-left text-white" style={{ width: '30%' }}>Назва ПЗ</th>
                     <th className="px-4 py-2 text-left text-white" style={{ width: '15%' }}>Версія</th>
                     <th className="px-4 py-2 text-left text-white" style={{ width: '20%' }}>Дата встановлення</th>
-                    <th className="px-4 py-2 text-left text-white" style={{ width: '20%' }}>Виробник</th>
-                    {/* Можна додати інші колонки, якщо дані будуть доступні через API */}
-                    {/* <th className="px-4 py-2 text-left" style={{ width: '10%' }}>Ліцензія</th> */}
-                    {/* <th className="px-4 py-2 text-left" style={{ width: '10%' }}>Ключ продукту</th> */}
+                    <th className="px-4 py-2 text-left text-white" style={{ width: '20%' }}>Виробник</th> {/* Додано поле Виробник */} 
                     <th className="px-4 py-2 text-left text-white" style={{ width: '15%' }}>Дії</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {/* Рядки таблиці для кожного встановленого ПЗ */}
-                  {installedSoftware.map((sw) => (
-                    <tr key={sw.id} className="border-b border-dark-border hover:bg-dark-bg transition-colors duration-200">
-                      <td className="py-3 px-4 text-white">{sw.name}</td>
-                      <td className="py-3 px-4 text-white">{sw.version}</td>
-                      <td className="py-3 px-4 text-white">{sw.installed_date}</td>
-                      <td className="py-3 px-4 text-white">{sw.manufacturer || '-'}</td> {/* Виробник опціонально */}
-                      {/* <td className="py-3 px-4 text-white">{sw.license_type || '-'}</td> */}
-                      {/* <td className="py-3 px-4 text-white">{sw.product_key || '-'}</td> */}
-                      <td className="py-3 px-4 flex items-center space-x-2">
-                         {/* Кнопки дій для встановленого ПЗ */}
-                         <button onClick={() => handleEditInstalledSoftware(sw.id)} className="text-gray-400 hover:text-white">Редагувати</button>
-                         <button onClick={() => handleDeleteInstalledSoftware(sw.id)} className="text-red-500 hover:text-red-600">Видалити</button>
+                  {selectedWorkstationSoftware.map((software) => (
+                    <tr key={software.id} className="border-b border-dark-border hover:bg-dark-hover">
+                      <td className="px-4 py-2 text-dark-textPrimary">{software.name}</td>
+                      <td className="px-4 py-2 text-dark-textPrimary">{software.version}</td>
+                      <td className="px-4 py-2 text-dark-textPrimary">{new Date(software.installation_date).toLocaleDateString()}</td>
+                      <td className="px-4 py-2 text-dark-textPrimary">{software.manufacturer || 'N/A'}</td> {/* Відображення виробника */} 
+                      <td className="px-4 py-2">
+                        <button
+                          onClick={() => handleEditInstalledSoftware(software)} // Передаємо весь об'єкт software
+                          className="text-blue-400 hover:text-blue-300 mr-2"
+                        >
+                          Редагувати
+                        </button>
+                        <button
+                          onClick={() => handleDeleteInstalledSoftware(software.id)}
+                          className="text-red-400 hover:text-red-300"
+                        >
+                          Видалити
+                        </button>
                       </td>
                     </tr>
                   ))}

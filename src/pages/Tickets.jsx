@@ -24,8 +24,11 @@ const Tickets = () => {
   });
 
   const handleAddTicket = async () => {
-    const creatingUser = users.find(u => u.name === newTicket.createdByUserId);
-    const assignedUser = users.find(u => u.name === newTicket.assignedPerformerId);
+    // const creatingUser = users.find(u => u.name === newTicket.createdByUserId); // Змінено
+    // const assignedUser = users.find(u => u.name === newTicket.assignedPerformerId); // Змінено
+
+    const creatingUser = users.find(u => u.id === parseInt(newTicket.createdByUserId));
+    const assignedUser = newTicket.assignedPerformerId ? users.find(u => u.id === parseInt(newTicket.assignedPerformerId)) : null;
 
     if (!creatingUser) {
       console.error('Creating user not found');
@@ -64,21 +67,23 @@ const Tickets = () => {
   };
 
   const handleStatusChange = (ticket, newStatus) => {
-    const assignedUser = users.find(u => u.name === ticket.assigned_performer);
+    // const assignedUser = users.find(u => u.name === ticket.assigned_performer); // Змінено
+    const assignedUser = ticket.assigned_performer_id ? users.find(u => u.id === ticket.assigned_performer_id) : null;
 
     const updatedTicket = {
       ...ticket,
       status: newStatus,
       workstation_id: ticket.workstation_id,
-      created_by_user_id: ticket.created_by_user_id,
+      created_by_user_id: ticket.created_by_user_id, // Переконуємось, що передаємо ID
       assigned_performer_id: assignedUser ? assignedUser.id : null,
     };
 
     updateTicket(updatedTicket);
 
     if (newStatus === 'Completed') {
-      const workstation = workstations.find(w => w.name === ticket.workstation);
-      const assignedPerformer = users.find(u => u.name === ticket.assigned_performer);
+      const workstation = workstations.find(w => w.id === ticket.workstation_id); // Змінено пошук АРМ за ID
+      // const assignedPerformer = users.find(u => u.name === ticket.assigned_performer); // Змінено
+      const assignedPerformer = ticket.assigned_performer_id ? users.find(u => u.id === ticket.assigned_performer_id) : null;
 
       if (!workstation) {
         console.error('Workstation not found for repair');
@@ -349,4 +354,4 @@ const Tickets = () => {
   );
 };
 
-export default Tickets; 
+export default Tickets;

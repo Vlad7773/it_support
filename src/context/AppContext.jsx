@@ -1,23 +1,31 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
+import React, { createContext, useState, useEffect, useContext, useCallback } from 'react';
 import axios from 'axios';
 
-const API_URL = 'http://localhost:3001/api';
+const API_URL = '/api'; // або 'http://localhost:3001/api' якщо proxy не працює
 
 const AppContext = createContext();
-
-export const useApp = () => useContext(AppContext);
 
 export const AppProvider = ({ children }) => {
   const [workstations, setWorkstations] = useState([]);
   const [users, setUsers] = useState([]);
   const [tickets, setTickets] = useState([]);
   const [repairs, setRepairs] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-
-  // Додаємо стани для підрозділів та статусів робочих станцій
   const [departments, setDepartments] = useState([]);
   const [workstationStatuses, setWorkstationStatuses] = useState([]);
+  const [selectedWorkstationSoftware, setSelectedWorkstationSoftware] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [currentUser, setCurrentUser] = useState(() => {
+    const storedUser = localStorage.getItem('currentUser');
+    try {
+      return storedUser ? JSON.parse(storedUser) : null;
+    } catch (e) {
+      console.error("Error parsing stored user:", e);
+      return null;
+    }
+  });
+  const [loadingSoftware, setLoadingSoftware] = useState(false);
+  const [errorSoftware, setErrorSoftware] = useState(null);
 
   // Завантаження даних
   const fetchData = async () => {
@@ -53,6 +61,65 @@ export const AppProvider = ({ children }) => {
   useEffect(() => {
     fetchData();
   }, []);
+
+  // Function to fetch software for a specific workstation
+  const fetchSoftwareForWorkstation = async (workstationId) => {
+    try {
+      setLoadingSoftware(true);
+      const response = await axios.get(`${API_URL}/workstations/${workstationId}/software`);
+      setSelectedWorkstationSoftware(response.data);
+      setError(null);
+    } catch (err) {
+      setError(`Помилка завантаження ПЗ для АРМ ${workstationId}`);
+      console.error('Error fetching software for workstation:', err);
+      setSelectedWorkstationSoftware([]); // Clear software on error
+    } finally {
+      setLoadingSoftware(false);
+    }
+  };
+
+  // Placeholder CRUD for software - implement as needed
+  const addSoftware = async (workstationId, softwareItem) => {
+    try {
+      // const response = await axios.post(`${API_URL}/workstations/${workstationId}/software`, softwareItem);
+      // TODO: Update local state if backend call is successful
+      // For now, just log and refetch or update manually if needed
+      console.log('Add software:', workstationId, softwareItem);
+      // await fetchSoftwareForWorkstation(workstationId); // Optionally refetch
+      alert('Функціонал додавання ПЗ ще не реалізовано на бекенді.');
+      // return response.data;
+    } catch (err) {
+      setError('Помилка додавання ПЗ');
+      throw err;
+    }
+  };
+
+  const updateSoftware = async (workstationId, softwareId, softwareItem) => {
+    try {
+      // const response = await axios.put(`${API_URL}/workstations/${workstationId}/software/${softwareId}`, softwareItem);
+      // TODO: Update local state
+      console.log('Update software:', workstationId, softwareId, softwareItem);
+      // await fetchSoftwareForWorkstation(workstationId); // Optionally refetch
+      alert('Функціонал оновлення ПЗ ще не реалізовано на бекенді.');
+      // return response.data;
+    } catch (err) {
+      setError('Помилка оновлення ПЗ');
+      throw err;
+    }
+  };
+
+  const deleteSoftware = async (workstationId, softwareId) => {
+    try {
+      // await axios.delete(`${API_URL}/workstations/${workstationId}/software/${softwareId}`);
+      // TODO: Update local state
+      console.log('Delete software:', workstationId, softwareId);
+      // await fetchSoftwareForWorkstation(workstationId); // Optionally refetch
+      alert('Функціонал видалення ПЗ ще не реалізовано на бекенді.');
+    } catch (err) {
+      setError('Помилка видалення ПЗ');
+      throw err;
+    }
+  };
 
   // Workstations CRUD
   const addWorkstation = async (workstation) => {
@@ -191,10 +258,15 @@ export const AppProvider = ({ children }) => {
     users,
     tickets,
     repairs,
-    loading,
-    error,
     departments,
     workstationStatuses,
+    selectedWorkstationSoftware,
+    loading,
+    error,
+    currentUser,
+    loadingSoftware,
+    errorSoftware,
+    fetchData,
     addWorkstation,
     updateWorkstation,
     deleteWorkstation,
@@ -207,10 +279,13 @@ export const AppProvider = ({ children }) => {
     addRepair,
     updateRepair,
     deleteRepair,
-    refreshData: fetchData
+    fetchSoftwareForWorkstation,
+    addSoftware,
+    updateSoftware,
+    deleteSoftware,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 };
 
-export default AppContext; 
+export const useApp = () => useContext(AppContext);

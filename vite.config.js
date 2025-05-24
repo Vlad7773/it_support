@@ -11,5 +11,19 @@ export default defineConfig({
         changeOrigin: true
       }
     }
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom'],
+          router: ['react-router-dom'],
+          ui: ['@headlessui/react', '@heroicons/react'],
+          charts: ['chart.js', 'react-chartjs-2', 'recharts'],
+          utils: ['axios', 'bcryptjs']
+        }
+      }
+    },
+    chunkSizeWarningLimit: 600
   }
 }) 

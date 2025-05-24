@@ -8,6 +8,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 export async function initializeDatabase() {
+    let db;
     try {
         console.log('Initializing database...');
         
@@ -16,24 +17,42 @@ export async function initializeDatabase() {
         const sqlScript = fs.readFileSync(sqlScriptPath, 'utf8');
         
         // Open database connection
-        const db = openDb();
+        db = openDb();
         
-        // Execute SQL script
+        // Execute SQL script (створює таблиці та вставляє початкові дані)
         db.exec(sqlScript);
         
-        // Create admin user with hashed password
+        // Тепер оновлюємо паролі користувачів на правильно хешовані
+        console.log('Updating user passwords...');
+        
+        // Створюємо хешовані паролі
         const adminPassword = await bcrypt.hash('admin123', 10);
-        db.prepare(`
-            INSERT OR IGNORE INTO users (username, password, full_name, role)
-            VALUES (?, ?, ?, ?)
-        `).run('admin', adminPassword, 'Admin User', 'admin');
+        const userPassword = await bcrypt.hash('user123', 10);
+        
+        // Оновлюємо паролі для всіх користувачів
+        const updatePassword = db.prepare('UPDATE users SET password = ? WHERE username = ?');
+        
+        updatePassword.run(adminPassword, 'admin');
+        updatePassword.run(userPassword, 'petrov.petro');
+        updatePassword.run(userPassword, 'sidorova.maria');
+        updatePassword.run(userPassword, 'kovalenko.olena');
+        updatePassword.run(userPassword, 'melnik.oleg');
+        updatePassword.run(userPassword, 'ivanov.ivan');
         
         console.log('Database initialized successfully');
+        console.log('Users created:');
+        console.log('  - admin/admin123 (admin role)');
+        console.log('  - petrov.petro/user123 (user role)');
+        console.log('  - sidorova.maria/user123 (user role)');
+        console.log('  - kovalenko.olena/user123 (user role)');
+        console.log('  - melnik.oleg/user123 (user role)');
+        console.log('  - ivanov.ivan/user123 (user role)');
+        
     } catch (error) {
         console.error('Error initializing database:', error);
         throw error;
     } finally {
-        closeDb();
+        if (db) closeDb();
     }
 }
 

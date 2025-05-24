@@ -1,11 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useApp } from '../context/AppContext';
 
 const Users = () => {
-  const [users, setUsers] = useState([
-    { id: 1, username: 'admin', name: 'Адміністратор', role: 'admin', department: 'IT', email: 'admin@example.com' },
-    { id: 2, username: 'user1', name: 'Іван Петров', role: 'user', department: 'Бухгалтерія', email: 'user1@example.com' },
-    { id: 3, username: 'user2', name: 'Марія Сидорова', role: 'user', department: 'HR', email: 'user2@example.com' },
-  ]);
+  const { users: contextUsers, addUser, updateUser, deleteUser, departments, loading, error } = useApp(); // Додано loading та error для обробки
+  const [users, setUsers] = useState([]);
+  
+  useEffect(() => {
+    if (contextUsers) {
+      setUsers(contextUsers);
+    }
+  }, [contextUsers]);
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -16,53 +20,82 @@ const Users = () => {
 
   const [newUser, setNewUser] = useState({
     username: '',
-    name: '',
+    full_name: '', // Змінено name на full_name
     role: 'user',
-    department: '',
+    department_id: '',
     email: '',
     password: '',
   });
 
-  const handleAddUser = (e) => {
+  const handleAddUser = async (e) => {
     e.preventDefault();
-    const user = {
-      id: users.length + 1,
-      ...newUser,
-    };
-    setUsers([...users, user]);
-    setShowAddModal(false);
-    setNewUser({
-      username: '',
-      name: '',
-      role: 'user',
-      department: '',
-      email: '',
-      password: '',
-    });
-  };
-
-  const handleEditUser = (e) => {
-    e.preventDefault();
-    setUsers(users.map(user => 
-      user.id === selectedUser.id ? { ...user, ...selectedUser } : user
-    ));
-    setShowEditModal(false);
-  };
-
-  const handleDeleteUser = (id) => {
-    if (window.confirm('Ви впевнені, що хочете видалити цього користувача?')) {
-      setUsers(users.filter(user => user.id !== id));
+    if (!newUser.department_id) {
+      alert('Будь ласка, виберіть відділ.');
+      return;
+    }
+    try {
+      await addUser(newUser);
+      setShowAddModal(false);
+      setNewUser({
+        username: '',
+        full_name: '', // Змінено name на full_name
+        role: 'user',
+        department_id: '',
+        email: '',
+        password: '',
+      });
+    } catch (error) {
+      console.error("Failed to add user:", error);
+      alert("Не вдалося додати користувача: " + (error.response?.data?.error || error.message)); // Використовуємо error.response?.data?.error
     }
   };
 
-  const filteredUsers = users.filter(user => {
-    const matchesSearch = user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         user.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         user.email.toLowerCase().includes(searchTerm.toLowerCase());
+  const handleEditUser = async (e) => {
+    e.preventDefault();
+    if (!selectedUser.department_id) {
+        alert('Будь ласка, виберіть відділ для користувача.');
+        return;
+    }
+    try {
+      const userToUpdate = { ...selectedUser };
+      // Переконуємося, що поле називається full_name, якщо воно є в selectedUser.name
+      if (userToUpdate.hasOwnProperty('name') && !userToUpdate.hasOwnProperty('full_name')) {
+        userToUpdate.full_name = userToUpdate.name;
+        delete userToUpdate.name;
+      }
+      delete userToUpdate.department; 
+      await updateUser(userToUpdate.id, userToUpdate); // Передаємо ID окремо
+      setShowEditModal(false);
+      setSelectedUser(null); // Очищаємо selectedUser
+    } catch (error) {
+      console.error("Failed to edit user:", error);
+      alert("Не вдалося редагувати користувача: " + (error.response?.data?.error || error.message)); // Використовуємо error.response?.data?.error
+    }
+  };
+
+  const handleDeleteUser = async (id) => {
+    if (window.confirm('Ви впевнені, що хочете видалити цього користувача?')) {
+      try {
+        await deleteUser(id);
+      } catch (error) {
+        console.error("Failed to delete user:", error);
+        alert("Не вдалося видалити користувача: " + (error.response?.data?.message || error.message));
+      }
+    }
+  };
+
+  const filteredUsers = (users || []).filter(user => {
+    // const departmentName = departments.find(d => d.id === user.department_id)?.name || ''; // Це поле не використовується, можна видалити
+    const matchesSearch = (user.full_name || '').toLowerCase().includes(searchTerm.toLowerCase()) || // Використовуємо full_name
+                         (user.username || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         (user.email || '').toLowerCase().includes(searchTerm.toLowerCase());
     const matchesRole = filterRole === 'all' || user.role === filterRole;
-    const matchesDepartment = filterDepartment === 'all' || user.department === filterDepartment;
+    const matchesDepartment = filterDepartment === 'all' || user.department_id === parseInt(filterDepartment);
     return matchesSearch && matchesRole && matchesDepartment;
   });
+
+  if (loading) return <p className="text-white">Завантаження користувачів...</p>;
+  if (error && !users.length) return <p className="text-red-500">Помилка завантаження користувачів: {error}</p>;
 
   return (
     <div>
@@ -100,9 +133,9 @@ const Users = () => {
             onChange={(e) => setFilterDepartment(e.target.value)}
           >
             <option value="all">Всі відділи</option>
-            <option value="IT">IT</option>
-            <option value="Бухгалтерія">Бухгалтерія</option>
-            <option value="HR">HR</option>
+            {(departments || []).map(dept => ( // Динамічна генерація відділів
+              <option key={dept.id} value={dept.id}>{dept.name}</option>
+            ))}
           </select>
         </div>
 
@@ -121,7 +154,7 @@ const Users = () => {
             <tbody>
               {filteredUsers.map(user => (
                 <tr key={user.id} className="border-b border-dark-border">
-                  <td className="py-3 text-white">{user.name}</td>
+                  <td className="py-3 text-white">{user.full_name}</td> {/* Використовуємо full_name */}
                   <td className="py-3 text-white">{user.username}</td>
                   <td className="py-3">
                     <span className={`px-2 py-1 rounded-full text-xs ${
@@ -130,12 +163,18 @@ const Users = () => {
                       {user.role === 'admin' ? 'Адміністратор' : 'Користувач'}
                     </span>
                   </td>
-                  <td className="py-3 text-white">{user.department}</td>
+                  <td className="py-3 text-white">{departments.find(d => d.id === user.department_id)?.name || 'N/A'}</td>
                   <td className="py-3 text-white">{user.email}</td>
                   <td className="py-3">
                     <button
                       onClick={() => {
-                        setSelectedUser(user);
+                        // При встановленні selectedUser, переконуємося, що використовується full_name
+                        const userToEdit = { ...user };
+                        if (userToEdit.hasOwnProperty('name') && !userToEdit.hasOwnProperty('full_name')) {
+                            userToEdit.full_name = userToEdit.name;
+                            delete userToEdit.name;
+                        }
+                        setSelectedUser(userToEdit); 
                         setShowEditModal(true);
                       }}
                       className="text-primary-400 hover:text-primary-300 mr-3"
@@ -173,12 +212,12 @@ const Users = () => {
                 />
               </div>
               <div className="mb-4">
-                <label className="block text-dark-textSecondary mb-2">Ім'я</label>
+                <label className="block text-dark-textSecondary mb-2">Повне ім'я</label>
                 <input
                   type="text"
                   className="w-full bg-dark-bg border border-dark-border rounded-lg px-4 py-2 text-white"
-                  value={newUser.name}
-                  onChange={(e) => setNewUser({ ...newUser, name: e.target.value })}
+                  value={newUser.full_name} // Змінено на full_name
+                  onChange={(e) => setNewUser({ ...newUser, full_name: e.target.value })} // Змінено на full_name
                   required
                 />
               </div>
@@ -195,13 +234,17 @@ const Users = () => {
               </div>
               <div className="mb-4">
                 <label className="block text-dark-textSecondary mb-2">Відділ</label>
-                <input
-                  type="text"
+                <select // Змінено input на select для відділу
                   className="w-full bg-dark-bg border border-dark-border rounded-lg px-4 py-2 text-white"
-                  value={newUser.department}
-                  onChange={(e) => setNewUser({ ...newUser, department: e.target.value })}
+                  value={newUser.department_id}
+                  onChange={(e) => setNewUser({ ...newUser, department_id: parseInt(e.target.value) })}
                   required
-                />
+                >
+                  <option value="">Оберіть відділ</option>
+                  {(departments || []).map(dept => (
+                    <option key={dept.id} value={dept.id}>{dept.name}</option>
+                  ))}
+                </select>
               </div>
               <div className="mb-4">
                 <label className="block text-dark-textSecondary mb-2">Email</label>
@@ -248,24 +291,25 @@ const Users = () => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
           <div className="bg-dark-card p-6 rounded-lg w-96">
             <h2 className="text-xl font-bold text-white mb-4">Редагувати користувача</h2>
+            {/* Переконайтеся, що selectedUser існує перед рендерингом форми */}
             <form onSubmit={handleEditUser}>
               <div className="mb-4">
                 <label className="block text-dark-textSecondary mb-2">Логін</label>
                 <input
                   type="text"
                   className="w-full bg-dark-bg border border-dark-border rounded-lg px-4 py-2 text-white"
-                  value={selectedUser.username}
+                  value={selectedUser.username || ''}
                   onChange={(e) => setSelectedUser({ ...selectedUser, username: e.target.value })}
                   required
                 />
               </div>
               <div className="mb-4">
-                <label className="block text-dark-textSecondary mb-2">Ім'я</label>
+                <label className="block text-dark-textSecondary mb-2">Повне ім'я</label>
                 <input
                   type="text"
                   className="w-full bg-dark-bg border border-dark-border rounded-lg px-4 py-2 text-white"
-                  value={selectedUser.name}
-                  onChange={(e) => setSelectedUser({ ...selectedUser, name: e.target.value })}
+                  value={selectedUser.full_name || ''} // Змінено на full_name
+                  onChange={(e) => setSelectedUser({ ...selectedUser, full_name: e.target.value })} // Змінено на full_name
                   required
                 />
               </div>
@@ -282,20 +326,23 @@ const Users = () => {
               </div>
               <div className="mb-4">
                 <label className="block text-dark-textSecondary mb-2">Відділ</label>
-                <input
-                  type="text"
+                <select // Змінено input на select для відділу
                   className="w-full bg-dark-bg border border-dark-border rounded-lg px-4 py-2 text-white"
-                  value={selectedUser.department}
-                  onChange={(e) => setSelectedUser({ ...selectedUser, department: e.target.value })}
+                  value={selectedUser.department_id} // Використовуємо department_id
+                  onChange={(e) => setSelectedUser({ ...selectedUser, department_id: parseInt(e.target.value) })} // Оновлюємо department_id
                   required
-                />
+                >
+                   {(departments || []).map(dept => (
+                      <option key={dept.id} value={dept.id}>{dept.name}</option>
+                    ))}
+                </select>
               </div>
               <div className="mb-6">
                 <label className="block text-dark-textSecondary mb-2">Email</label>
                 <input
                   type="email"
                   className="w-full bg-dark-bg border border-dark-border rounded-lg px-4 py-2 text-white"
-                  value={selectedUser.email}
+                  value={selectedUser.email || ''}
                   onChange={(e) => setSelectedUser({ ...selectedUser, email: e.target.value })}
                   required
                 />
@@ -323,4 +370,4 @@ const Users = () => {
   );
 };
 
-export default Users; 
+export default Users;

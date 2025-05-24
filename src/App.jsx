@@ -15,19 +15,31 @@ const Reports = () => <div className="text-white">Сторінка звітів<
 const Settings = () => <div className="text-white">Сторінка налаштувань</div>;
 
 const ProtectedRoute = ({ children }) => {
-  const user = JSON.parse(localStorage.getItem('user'));
-  if (!user) {
+  try {
+    const user = JSON.parse(localStorage.getItem('user') || 'null');
+    if (!user) {
+      return <Navigate to="/login" />;
+    }
+    return children;
+  } catch (error) {
+    console.error('Error parsing user data:', error);
+    localStorage.removeItem('user');
     return <Navigate to="/login" />;
   }
-  return children;
 };
 
 const AdminRoute = ({ children }) => {
-  const user = JSON.parse(localStorage.getItem('user'));
-  if (!user || user.role !== 'admin') {
-    return <Navigate to="/" />;
+  try {
+    const user = JSON.parse(localStorage.getItem('user') || 'null');
+    if (!user || user.role !== 'admin') {
+      return <Navigate to="/" />;
+    }
+    return children;
+  } catch (error) {
+    console.error('Error parsing user data:', error);
+    localStorage.removeItem('user');
+    return <Navigate to="/login" />;
   }
-  return children;
 };
 
 const App = () => {
@@ -39,41 +51,51 @@ const App = () => {
           <Route
             path="/"
             element={
-              <Layout>
-                <Dashboard />
-              </Layout>
+              <ProtectedRoute>
+                <Layout>
+                  <Dashboard />
+                </Layout>
+              </ProtectedRoute>
             }
           />
           <Route
             path="/workstations"
             element={
-              <Layout>
-                <Workstations />
-              </Layout>
+              <ProtectedRoute>
+                <Layout>
+                  <Workstations />
+                </Layout>
+              </ProtectedRoute>
             }
           />
           <Route
             path="/tickets"
             element={
-              <Layout>
-                <Tickets />
-              </Layout>
+              <ProtectedRoute>
+                <Layout>
+                  <Tickets />
+                </Layout>
+              </ProtectedRoute>
             }
           />
           <Route
             path="/repairs"
             element={
-              <Layout>
-                <Repairs />
-              </Layout>
+              <ProtectedRoute>
+                <Layout>
+                  <Repairs />
+                </Layout>
+              </ProtectedRoute>
             }
           />
           <Route
             path="/software"
             element={
-              <Layout>
-                <Software />
-              </Layout>
+              <ProtectedRoute>
+                <Layout>
+                  <Software />
+                </Layout>
+              </ProtectedRoute>
             }
           />
           <Route

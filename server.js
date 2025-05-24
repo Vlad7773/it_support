@@ -65,6 +65,7 @@ app.get('/api/workstations', async (req, res) => {
       FROM workstations w
       LEFT JOIN departments d ON w.department_id = d.id
       LEFT JOIN users u ON w.responsible_id = u.id
+      ORDER BY w.registration_date DESC, w.created_at DESC
     `);
     res.json(workstations);
   } catch (error) {
@@ -73,16 +74,52 @@ app.get('/api/workstations', async (req, res) => {
 });
 
 app.post('/api/workstations', async (req, res) => {
-  const { inventory_number, os_name, department_id, responsible_id, status, notes } = req.body;
-  if (!inventory_number || !os_name) {
-    return res.status(400).json({ error: 'Inventory number and OS name are required' });
+  const { 
+    inventory_number, 
+    ip_address, 
+    mac_address, 
+    grif, 
+    os_name, 
+    department_id, 
+    responsible_id, 
+    contacts, 
+    notes, 
+    status, 
+    registration_date 
+  } = req.body;
+  
+  if (!inventory_number || !os_name || !grif) {
+    return res.status(400).json({ error: 'Inventory number, OS name and grif are required' });
   }
+  
   try {
     const result = await run(
-      'INSERT INTO workstations (inventory_number, os_name, department_id, responsible_id, status, notes) VALUES (?, ?, ?, ?, ?, ?)',
-      [inventory_number, os_name, department_id, responsible_id, status || 'operational', notes]
+      `INSERT INTO workstations 
+       (inventory_number, ip_address, mac_address, grif, os_name, department_id, responsible_id, contacts, notes, status, registration_date) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        inventory_number, 
+        ip_address, 
+        mac_address, 
+        grif, 
+        os_name, 
+        department_id, 
+        responsible_id, 
+        contacts, 
+        notes, 
+        status || 'operational', 
+        registration_date || new Date().toISOString().split('T')[0]
+      ]
     );
-    const newWorkstation = await getOne('SELECT w.*, d.name as department_name, u.full_name as responsible_name FROM workstations w LEFT JOIN departments d ON w.department_id = d.id LEFT JOIN users u ON w.responsible_id = u.id WHERE w.id = ?', [result.lastInsertRowid]);
+    
+    const newWorkstation = await getOne(`
+      SELECT w.*, d.name as department_name, u.full_name as responsible_name 
+      FROM workstations w 
+      LEFT JOIN departments d ON w.department_id = d.id 
+      LEFT JOIN users u ON w.responsible_id = u.id 
+      WHERE w.id = ?
+    `, [result.lastInsertRowid]);
+    
     res.status(201).json(newWorkstation);
   } catch (error) {
     console.error('Error creating workstation:', error);
@@ -92,16 +129,53 @@ app.post('/api/workstations', async (req, res) => {
 
 app.put('/api/workstations/:id', async (req, res) => {
   const { id } = req.params;
-  const { inventory_number, os_name, department_id, responsible_id, status, notes } = req.body;
-  if (!inventory_number || !os_name) {
-    return res.status(400).json({ error: 'Inventory number and OS name are required' });
+  const { 
+    inventory_number, 
+    ip_address, 
+    mac_address, 
+    grif, 
+    os_name, 
+    department_id, 
+    responsible_id, 
+    contacts, 
+    notes, 
+    status 
+  } = req.body;
+  
+  if (!inventory_number || !os_name || !grif) {
+    return res.status(400).json({ error: 'Inventory number, OS name and grif are required' });
   }
+  
   try {
     await run(
-      'UPDATE workstations SET inventory_number = ?, os_name = ?, department_id = ?, responsible_id = ?, status = ?, notes = ? WHERE id = ?',
-      [inventory_number, os_name, department_id, responsible_id, status, notes, id]
+      `UPDATE workstations 
+       SET inventory_number = ?, ip_address = ?, mac_address = ?, grif = ?, os_name = ?, 
+           department_id = ?, responsible_id = ?, contacts = ?, notes = ?, status = ?, 
+           updated_at = CURRENT_TIMESTAMP
+       WHERE id = ?`,
+      [
+        inventory_number, 
+        ip_address, 
+        mac_address, 
+        grif, 
+        os_name, 
+        department_id, 
+        responsible_id, 
+        contacts, 
+        notes, 
+        status, 
+        id
+      ]
     );
-    const updatedWorkstation = await getOne('SELECT w.*, d.name as department_name, u.full_name as responsible_name FROM workstations w LEFT JOIN departments d ON w.department_id = d.id LEFT JOIN users u ON w.responsible_id = u.id WHERE w.id = ?', [id]);
+    
+    const updatedWorkstation = await getOne(`
+      SELECT w.*, d.name as department_name, u.full_name as responsible_name 
+      FROM workstations w 
+      LEFT JOIN departments d ON w.department_id = d.id 
+      LEFT JOIN users u ON w.responsible_id = u.id 
+      WHERE w.id = ?
+    `, [id]);
+    
     if (!updatedWorkstation) {
         return res.status(404).json({ error: 'Workstation not found' });
     }
@@ -481,7 +555,12 @@ app.delete('/api/repairs/:id', async (req, res) => {
 
 // --- Serve React App ---
 // Має бути після всіх API маршрутів
-app.get('*', (req, res) => {
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'dist', 'index.html'));
+});
+
+// Handle client-side routing
+app.get(/^(?!\/api).*/, (req, res) => {
   res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
 

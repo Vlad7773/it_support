@@ -32,12 +32,9 @@ const Login = () => {
 
       if (response.data && response.data.user) {
         localStorage.setItem('user', JSON.stringify(response.data.user)); // Зберігаємо дані користувача
-        localStorage.setItem('token', response.data.token); // Якщо ви будете використовувати токени
-        // Можливо, вам потрібно буде оновити стан у AppContext тут, якщо він використовується для автентифікації
         navigate('/'); // Перенаправлення на головну сторінку
       } else {
-        // Це мало б оброблятися у catch блоці для HTTP помилок
-        setError(response.data.error || 'Помилка входу. Невірна відповідь сервера.');
+        setError('Помилка входу. Невірна відповідь сервера.');
       }
     } catch (err) {
       if (err.response && err.response.data && err.response.data.error) {

@@ -393,8 +393,8 @@ app.get('/api/griflevels', async (req, res) => {
       { id: 1, value: 'Відкрито', name: 'Відкрито', color: 'bg-blue-500 text-blue-100' },
       { id: 2, value: 'ДСК', name: 'ДСК', color: 'bg-green-500 text-green-100' },
       { id: 3, value: 'Таємно', name: 'Таємно', color: 'bg-yellow-500 text-yellow-100' },
-      { id: 4, value: 'Цілком таємно', name: 'Цілком таємно', color: 'bg-orange-500 text-orange-100' },
-      { id: 5, value: 'Особливої важливості', name: 'Особливої важливості', color: 'bg-red-500 text-red-100' }
+      { id: 4, value: 'Цілком таємно', name: 'Цілком\nтаємно', color: 'bg-orange-500 text-orange-100' },
+      { id: 5, value: 'Особливої важливості', name: 'Особливої\nважливості', color: 'bg-red-500 text-red-100' }
     ];
     res.json(grifLevels);
   } catch (error) {

@@ -3,8 +3,11 @@ import {
   MagnifyingGlassIcon,
   FunnelIcon,
   PlusIcon,
-  EllipsisVerticalIcon,
+  Bars3Icon,
   ComputerDesktopIcon,
+  DevicePhoneMobileIcon,
+  TvIcon,
+  ServerIcon,
   ShieldCheckIcon,
   BuildingOfficeIcon,
   UserIcon,
@@ -35,7 +38,6 @@ const Workstations = () => {
   const [selectedWorkstation, setSelectedWorkstation] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterDepartment, setFilterDepartment] = useState('all');
-  const [filterStatus, setFilterStatus] = useState('all');
   const [filterGrif, setFilterGrif] = useState('all');
   const [filterResponsible, setFilterResponsible] = useState('all');
   const [activeTab, setActiveTab] = useState('main');
@@ -48,7 +50,7 @@ const Workstations = () => {
     os_name: '',
     department_id: '',
     responsible_id: '',
-    contacts: '',
+    contacts: '+380',
     notes: '',
     processor: '',
     ram: '',
@@ -56,7 +58,6 @@ const Workstations = () => {
     monitor: '',
     network: '',
     type: 'Десктоп',
-    status: 'operational',
   };
 
   const [formData, setFormData] = useState(initialFormData);
@@ -77,6 +78,20 @@ const Workstations = () => {
     setSelectedWorkstation(null);
   }, [location.pathname]);
 
+  // Функція для отримання іконки типу пристрою
+  const getDeviceIcon = (type) => {
+    switch (type) {
+      case 'Ноутбук':
+        return <DevicePhoneMobileIcon className="h-4 w-4 text-gray-400 transform rotate-90" />;
+      case 'Моноблок':
+        return <TvIcon className="h-4 w-4 text-gray-400" />;
+      case 'Сервер':
+        return <ServerIcon className="h-4 w-4 text-gray-400" />;
+      default: // Десктоп
+        return <ComputerDesktopIcon className="h-4 w-4 text-gray-400" />;
+    }
+  };
+
   // Валідація IP адреси
   const validateIP = (ip) => {
     const ipRegex = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
@@ -89,12 +104,20 @@ const Workstations = () => {
     return macRegex.test(mac);
   };
 
-  // Автоформатування IP
+  // Покращена валідація IP - тільки цифри і крапки, не більше 4 токенів, не дві крапки підряд
   const handleIPChange = (value) => {
     // Видаляємо всі символи крім цифр і крапок
     let formatted = value.replace(/[^\d.]/g, '');
     
-    // Розбиваємо на частини
+    // Не дозволяємо дві крапки підряд
+    formatted = formatted.replace(/\.{2,}/g, '.');
+    
+    // Не дозволяємо крапку на початку
+    if (formatted.startsWith('.')) {
+      formatted = formatted.substring(1);
+    }
+    
+    // Розбиваємо на частини і обмежуємо до 4 токенів
     const parts = formatted.split('.');
     if (parts.length > 4) {
       formatted = parts.slice(0, 4).join('.');
@@ -102,12 +125,15 @@ const Workstations = () => {
     
     // Обмежуємо кожну частину до 255
     const validParts = parts.map(part => {
+      if (part === '') return '';
       const num = parseInt(part, 10);
       if (isNaN(num)) return '';
       return Math.min(num, 255).toString();
     });
     
-    setFormData(prev => ({ ...prev, ip_address: validParts.join('.') }));
+    formatted = validParts.join('.');
+    
+    setFormData(prev => ({ ...prev, ip_address: formatted }));
   };
 
   // Автоформатування MAC
@@ -175,7 +201,7 @@ const Workstations = () => {
     try {
       const payload = {
         ...formData,
-        department_id: parseInt(formData.department_id, 10),
+        department_id: parseInt(formData.department_id, 10) || null,
         responsible_id: formData.responsible_id ? parseInt(formData.responsible_id, 10) : null,
       };
       await addWorkstation(payload);
@@ -209,7 +235,7 @@ const Workstations = () => {
     try {
       const payload = {
         ...formData,
-        department_id: parseInt(formData.department_id, 10),
+        department_id: parseInt(formData.department_id, 10) || null,
         responsible_id: formData.responsible_id ? parseInt(formData.responsible_id, 10) : null,
       };
       await updateWorkstation(selectedWorkstation.id, payload);
@@ -231,7 +257,12 @@ const Workstations = () => {
       setSelectedWorkstation(null);
     } catch (err) {
       console.error("Failed to delete workstation:", err);
-      alert(`Помилка видалення АРМ: ${err.response?.data?.error || err.message}`);
+      // Обробка помилки з активними заявками/ремонтами
+      if (err.response?.data?.error?.includes('active tickets or repairs')) {
+        alert('Не можна видалити АРМ з активними заявками або ремонтами. Спочатку переназначте або вирішіть їх.');
+      } else {
+        alert(`Помилка видалення АРМ: ${err.response?.data?.error || err.message}`);
+      }
     }
   };
 
@@ -245,7 +276,7 @@ const Workstations = () => {
       os_name: workstation.os_name || '',
       department_id: workstation.department_id || '',
       responsible_id: workstation.responsible_id || '',
-      contacts: workstation.contacts || '',
+      contacts: workstation.contacts || '+380',
       notes: workstation.notes || '',
       processor: workstation.processor || '',
       ram: workstation.ram || '',
@@ -253,7 +284,6 @@ const Workstations = () => {
       monitor: workstation.monitor || '',
       network: workstation.network || '',
       type: workstation.type || 'Десктоп',
-      status: workstation.status || 'operational',
     });
     setShowEditModal(true);
     setActiveTab('main');
@@ -277,11 +307,10 @@ const Workstations = () => {
       responsibleUser?.full_name?.toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchesDepartment = filterDepartment === 'all' || ws.department_id === parseInt(filterDepartment);
-    const matchesStatus = filterStatus === 'all' || ws.status === filterStatus;
     const matchesGrif = filterGrif === 'all' || ws.grif === filterGrif;
     const matchesResponsible = filterResponsible === 'all' || ws.responsible_id === parseInt(filterResponsible);
 
-    return matchesSearch && matchesDepartment && matchesStatus && matchesGrif && matchesResponsible;
+    return matchesSearch && matchesDepartment && matchesGrif && matchesResponsible;
   });
 
   if (loading) return (
@@ -301,7 +330,7 @@ const Workstations = () => {
 
   return (
     <div className="min-h-screen p-6 space-y-6">
-      {/* Header */}
+      {/* Header - кнопка в одну лінію */}
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold text-white">Робочі станції</h1>
@@ -313,33 +342,33 @@ const Workstations = () => {
             setShowAddModal(true);
             setActiveTab('main');
           }}
-          className="btn-gradient"
+          className="btn-gradient flex items-center gap-2"
         >
-          <PlusIcon className="h-5 w-5 mr-2" />
-          Додати АРМ
+          <PlusIcon className="h-5 w-5" />
+          <span>Додати АРМ</span>
         </button>
       </div>
 
-      {/* Компактні фільтри */}
-      <div className="dark-card rounded-xl p-6">
-        <div className="flex flex-wrap items-center gap-4">
+      {/* Компактні фільтри в одну лінію */}
+      <div className="dark-card rounded-xl p-4">
+        <div className="flex items-center gap-3">
           {/* Пошук */}
-          <div className="relative flex-1 min-w-[300px]">
+          <div className="relative flex-1 min-w-[250px]">
             <input
               type="text"
-              placeholder="Пошук за інв. номером, IP, MAC, ОС..."
+              placeholder="Пошук..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="modern-input pl-12"
+              className="modern-input pl-10 py-2"
             />
-            <MagnifyingGlassIcon className="h-5 w-5 text-[#8892b0] absolute left-4 top-1/2 transform -translate-y-1/2" />
+            <MagnifyingGlassIcon className="h-4 w-4 text-[#8892b0] absolute left-3 top-1/2 transform -translate-y-1/2" />
           </div>
           
-          {/* Фільтри */}
+          {/* Фільтри з кращими стилями */}
           <select
             value={filterDepartment}
             onChange={(e) => setFilterDepartment(e.target.value)}
-            className="modern-select min-w-[150px]"
+            className="bg-[#16213e] border border-[#2a3f66] rounded-lg px-3 py-2 text-white text-sm min-w-[120px] focus:outline-none focus:ring-2 focus:ring-[#64ffda] focus:border-[#64ffda]"
           >
             <option value="all">Всі підрозділи</option>
             {departments.map(dept => (
@@ -350,29 +379,18 @@ const Workstations = () => {
           <select
             value={filterGrif}
             onChange={(e) => setFilterGrif(e.target.value)}
-            className="modern-select min-w-[120px]"
+            className="bg-[#16213e] border border-[#2a3f66] rounded-lg px-3 py-2 text-white text-sm min-w-[100px] focus:outline-none focus:ring-2 focus:ring-[#64ffda] focus:border-[#64ffda]"
           >
             <option value="all">Всі грифи</option>
             {grifLevels.map(grif => (
-              <option key={grif.id} value={grif.value}>{grif.name}</option>
-            ))}
-          </select>
-
-          <select
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
-            className="modern-select min-w-[130px]"
-          >
-            <option value="all">Всі статуси</option>
-            {workstationStatuses.map(status => (
-              <option key={status.id} value={status.value}>{status.name}</option>
+              <option key={grif.id} value={grif.value}>{grif.name.replace('\n', ' ')}</option>
             ))}
           </select>
 
           <select
             value={filterResponsible}
             onChange={(e) => setFilterResponsible(e.target.value)}
-            className="modern-select min-w-[180px]"
+            className="bg-[#16213e] border border-[#2a3f66] rounded-lg px-3 py-2 text-white text-sm min-w-[140px] focus:outline-none focus:ring-2 focus:ring-[#64ffda] focus:border-[#64ffda]"
           >
             <option value="all">Всі відповідальні</option>
             {users.map(user => (
@@ -382,20 +400,18 @@ const Workstations = () => {
         </div>
       </div>
 
-      {/* Таблиця */}
+      {/* Таблиця без MAC адреси з кращим заголовком */}
       <div className="dark-card rounded-xl overflow-hidden">
         <div className="overflow-x-auto">
           <table className="modern-table">
-            <thead>
+            <thead className="bg-[#0e3460]">
               <tr>
-                <th>Інв. номер</th>
+                <th>Тип/Інв. номер</th>
                 <th>IP адреса</th>
-                <th>MAC адреса</th>
                 <th>Гриф</th>
                 <th>Підрозділ</th>
                 <th>Відповідальний</th>
                 <th>Контакти</th>
-                <th>Примітки</th>
                 <th>Дата реєстрації</th>
                 <th className="text-center">Дії</th>
               </tr>
@@ -408,9 +424,13 @@ const Workstations = () => {
                 
                 return (
                   <tr key={ws.id}>
-                    <td className="font-semibold">{ws.inventory_number}</td>
-                    <td className="font-mono">{ws.ip_address || '-'}</td>
-                    <td className="font-mono text-sm">{ws.mac_address || '-'}</td>
+                    <td>
+                      <div className="flex items-center gap-2">
+                        {getDeviceIcon(ws.type)}
+                        <span className="font-semibold">{ws.inventory_number}</span>
+                      </div>
+                    </td>
+                    <td className="font-mono font-medium">{ws.ip_address || '-'}</td>
                     <td>
                       <span className={`status-badge ${grifObj?.color || 'bg-gray-500 bg-opacity-20 text-gray-300'}`}>
                         {grifObj?.name || ws.grif}
@@ -419,7 +439,6 @@ const Workstations = () => {
                     <td>{department?.name || '-'}</td>
                     <td>{responsibleUser?.full_name || '-'}</td>
                     <td>{ws.contacts || '-'}</td>
-                    <td className="max-w-[200px] truncate">{ws.notes || '-'}</td>
                     <td>{ws.registration_date || '-'}</td>
                     <td className="text-center">
                       <button
@@ -427,14 +446,14 @@ const Workstations = () => {
                         className="text-[#8892b0] hover:text-[#64ffda] p-2 rounded-lg transition-all duration-200 hover:bg-[#0e3460]"
                         title="Деталі"
                       >
-                        <EllipsisVerticalIcon className="h-5 w-5" />
+                        <Bars3Icon className="h-5 w-5" />
                       </button>
                     </td>
                   </tr>
                 );
               }) : (
                 <tr>
-                  <td colSpan="10" className="text-center py-12">
+                  <td colSpan="8" className="text-center py-12">
                     <ComputerDesktopIcon className="h-16 w-16 mx-auto mb-4 text-[#8892b0] opacity-50" />
                     <p className="text-[#8892b0]">Немає АРМ, що відповідають фільтрам</p>
                   </td>
@@ -445,11 +464,11 @@ const Workstations = () => {
         </div>
       </div>
 
-      {/* Модальне вікно додавання/редагування АРМ */}
+      {/* Модальне вікно додавання/редагування АРМ з фіксованим розміром */}
       {(showAddModal || showEditModal) && (
         <div className="fixed inset-0 modal-backdrop flex items-center justify-center z-50 p-4">
-          <div className="modal-content rounded-xl p-8 w-full max-w-5xl max-h-[90vh] overflow-y-auto animate-fadeIn">
-            <div className="flex justify-between items-center mb-8">
+          <div className="modal-content rounded-xl p-7 w-full max-w-5xl h-[85vh] overflow-y-auto animate-fadeIn">
+            <div className="flex justify-between items-center mb-7">
               <h2 className="text-3xl font-bold text-white">{showAddModal ? 'Додати АРМ' : 'Редагувати АРМ'}</h2>
               <button onClick={() => {
                 showAddModal ? setShowAddModal(false) : setShowEditModal(false);
@@ -462,11 +481,11 @@ const Workstations = () => {
             </div>
             
             {/* Навігація по вкладках */}
-            <div className="flex space-x-2 mb-8 bg-[#0f0f23] rounded-xl p-2">
+            <div className="flex space-x-2 mb-7 bg-[#0f0f23] rounded-xl p-2">
               <button
                 type="button"
                 onClick={() => setActiveTab('main')}
-                className={`px-6 py-3 rounded-lg font-semibold transition-all duration-200 ${
+                className={`px-5 py-3 rounded-lg font-medium transition-all duration-200 ${
                   activeTab === 'main' ? 'bg-[#64ffda] text-[#0f0f23]' : 'text-[#8892b0] hover:text-white hover:bg-[#0e3460]'
                 }`}
               >
@@ -475,7 +494,7 @@ const Workstations = () => {
               <button
                 type="button"
                 onClick={() => setActiveTab('network')}
-                className={`px-6 py-3 rounded-lg font-semibold transition-all duration-200 ${
+                className={`px-5 py-3 rounded-lg font-medium transition-all duration-200 ${
                   activeTab === 'network' ? 'bg-[#64ffda] text-[#0f0f23]' : 'text-[#8892b0] hover:text-white hover:bg-[#0e3460]'
                 }`}
               >
@@ -484,7 +503,7 @@ const Workstations = () => {
               <button
                 type="button"
                 onClick={() => setActiveTab('hardware')}
-                className={`px-6 py-3 rounded-lg font-semibold transition-all duration-200 ${
+                className={`px-5 py-3 rounded-lg font-medium transition-all duration-200 ${
                   activeTab === 'hardware' ? 'bg-[#64ffda] text-[#0f0f23]' : 'text-[#8892b0] hover:text-white hover:bg-[#0e3460]'
                 }`}
               >
@@ -493,7 +512,7 @@ const Workstations = () => {
               <button
                 type="button"
                 onClick={() => setActiveTab('other')}
-                className={`px-6 py-3 rounded-lg font-semibold transition-all duration-200 ${
+                className={`px-5 py-3 rounded-lg font-medium transition-all duration-200 ${
                   activeTab === 'other' ? 'bg-[#64ffda] text-[#0f0f23]' : 'text-[#8892b0] hover:text-white hover:bg-[#0e3460]'
                 }`}
               >
@@ -504,9 +523,9 @@ const Workstations = () => {
             <form onSubmit={showAddModal ? handleAdd : handleEdit}>
               {/* Основні дані */}
               {activeTab === 'main' && (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-7">
                   <div>
-                    <label className="block text-sm font-semibold text-[#8892b0] mb-2">
+                    <label className="block text-sm font-medium text-[#8892b0] mb-2">
                       Інвентарний номер <span className="text-red-400">*</span>
                     </label>
                     <input 
@@ -519,65 +538,76 @@ const Workstations = () => {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-[#8892b0] mb-2">
+                    <label className="block text-sm font-medium text-[#8892b0] mb-2">
                       Операційна система <span className="text-red-400">*</span>
                     </label>
                     <input 
                       type="text" 
+                      list="os-list"
                       value={formData.os_name} 
                       onChange={(e) => setFormData({...formData, os_name: e.target.value})} 
                       className="modern-input" 
                       required 
                       placeholder="Windows 11 Pro"
                     />
+                    <datalist id="os-list">
+                      <option value="Windows 10" />
+                      <option value="Windows 11" />
+                      <option value="Windows 11 Pro" />
+                      <option value="Linux Ubuntu" />
+                      <option value="Linux CentOS" />
+                      <option value="Linux Debian" />
+                    </datalist>
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-[#8892b0] mb-2">
+                    <label className="block text-sm font-medium text-[#8892b0] mb-2">
                       Підрозділ <span className="text-red-400">*</span>
                     </label>
-                    <select 
-                      value={formData.department_id} 
-                      onChange={(e) => setFormData({...formData, department_id: e.target.value})} 
-                      className="modern-select" 
+                    <input 
+                      type="text" 
+                      list="department-list"
+                      value={departments.find(d => d.id === parseInt(formData.department_id))?.name || formData.department_id}
+                      onChange={(e) => {
+                        const dept = departments.find(d => d.name === e.target.value);
+                        setFormData({...formData, department_id: dept ? dept.id : e.target.value});
+                      }}
+                      className="modern-input" 
                       required
-                    >
-                      <option value="">Виберіть підрозділ</option>
-                      {departments.map(dept => <option key={dept.id} value={dept.id}>{dept.name}</option>)}
-                    </select>
+                      placeholder="Виберіть або введіть підрозділ"
+                    />
+                    <datalist id="department-list">
+                      {departments.map(dept => <option key={dept.id} value={dept.name} />)}
+                    </datalist>
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-[#8892b0] mb-2">Відповідальний</label>
-                    <select 
-                      value={formData.responsible_id} 
-                      onChange={(e) => setFormData({...formData, responsible_id: e.target.value})} 
-                      className="modern-select"
-                    >
-                      <option value="">Виберіть відповідального</option>
-                      {users.map(user => <option key={user.id} value={user.id}>{user.full_name}</option>)}
-                    </select>
+                    <label className="block text-sm font-medium text-[#8892b0] mb-2">Відповідальний</label>
+                    <input 
+                      type="text" 
+                      list="user-list"
+                      value={users.find(u => u.id === parseInt(formData.responsible_id))?.full_name || formData.responsible_id}
+                      onChange={(e) => {
+                        const user = users.find(u => u.full_name === e.target.value);
+                        setFormData({...formData, responsible_id: user ? user.id : e.target.value});
+                      }}
+                      className="modern-input"
+                      placeholder="Виберіть або введіть відповідального"
+                    />
+                    <datalist id="user-list">
+                      {users.map(user => <option key={user.id} value={user.full_name} />)}
+                    </datalist>
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-[#8892b0] mb-2">Гриф</label>
+                    <label className="block text-sm font-medium text-[#8892b0] mb-2">Гриф</label>
                     <select 
                       value={formData.grif} 
                       onChange={(e) => setFormData({...formData, grif: e.target.value})} 
                       className="modern-select"
                     >
-                      {grifLevels.map(grif => <option key={grif.id} value={grif.value}>{grif.name}</option>)}
+                      {grifLevels.map(grif => <option key={grif.id} value={grif.value}>{grif.name.replace('\n', ' ')}</option>)}
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-[#8892b0] mb-2">Статус</label>
-                    <select 
-                      value={formData.status} 
-                      onChange={(e) => setFormData({...formData, status: e.target.value})} 
-                      className="modern-select"
-                    >
-                      {workstationStatuses.map(status => <option key={status.id} value={status.value}>{status.name}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-[#8892b0] mb-2">Тип пристрою</label>
+                    <label className="block text-sm font-medium text-[#8892b0] mb-2">Тип пристрою</label>
                     <select 
                       value={formData.type} 
                       onChange={(e) => setFormData({...formData, type: e.target.value})} 
@@ -589,8 +619,8 @@ const Workstations = () => {
                       <option value="Сервер">Сервер</option>
                     </select>
                   </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-[#8892b0] mb-2">Контакти</label>
+                  <div className="lg:col-span-2">
+                    <label className="block text-sm font-medium text-[#8892b0] mb-2">Контакти</label>
                     <input 
                       type="text" 
                       value={formData.contacts} 
@@ -599,24 +629,14 @@ const Workstations = () => {
                       placeholder="+380501234567"
                     />
                   </div>
-                  <div className="lg:col-span-2">
-                    <label className="block text-sm font-semibold text-[#8892b0] mb-2">Примітки</label>
-                    <textarea 
-                      value={formData.notes} 
-                      onChange={(e) => setFormData({...formData, notes: e.target.value})} 
-                      className="modern-input resize-none" 
-                      rows="4"
-                      placeholder="Додаткова інформація..."
-                    />
-                  </div>
                 </div>
               )}
 
               {/* Мережа */}
               {activeTab === 'network' && (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-7">
                   <div>
-                    <label className="block text-sm font-semibold text-[#8892b0] mb-2">IP адреса</label>
+                    <label className="block text-sm font-medium text-[#8892b0] mb-2">IP адреса</label>
                     <input 
                       type="text" 
                       value={formData.ip_address} 
@@ -626,7 +646,7 @@ const Workstations = () => {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-[#8892b0] mb-2">MAC адреса</label>
+                    <label className="block text-sm font-medium text-[#8892b0] mb-2">MAC адреса</label>
                     <input 
                       type="text" 
                       value={formData.mac_address} 
@@ -636,7 +656,7 @@ const Workstations = () => {
                     />
                   </div>
                   <div className="lg:col-span-2">
-                    <label className="block text-sm font-semibold text-[#8892b0] mb-2">Мережеві інтерфейси</label>
+                    <label className="block text-sm font-medium text-[#8892b0] mb-2">Мережеві інтерфейси</label>
                     <input 
                       type="text" 
                       value={formData.network} 
@@ -650,9 +670,9 @@ const Workstations = () => {
 
               {/* Обладнання */}
               {activeTab === 'hardware' && (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-7">
                   <div>
-                    <label className="block text-sm font-semibold text-[#8892b0] mb-2">Процесор</label>
+                    <label className="block text-sm font-medium text-[#8892b0] mb-2">Процесор</label>
                     <input 
                       type="text" 
                       value={formData.processor} 
@@ -662,7 +682,7 @@ const Workstations = () => {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-[#8892b0] mb-2">ОЗУ</label>
+                    <label className="block text-sm font-medium text-[#8892b0] mb-2">ОЗУ</label>
                     <input 
                       type="text" 
                       value={formData.ram} 
@@ -672,7 +692,7 @@ const Workstations = () => {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-[#8892b0] mb-2">Накопичувач</label>
+                    <label className="block text-sm font-medium text-[#8892b0] mb-2">Накопичувач</label>
                     <input 
                       type="text" 
                       value={formData.storage} 
@@ -682,7 +702,7 @@ const Workstations = () => {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-[#8892b0] mb-2">Монітор</label>
+                    <label className="block text-sm font-medium text-[#8892b0] mb-2">Монітор</label>
                     <input 
                       type="text" 
                       value={formData.monitor} 
@@ -694,12 +714,25 @@ const Workstations = () => {
                 </div>
               )}
 
-              {/* Інше */}
+              {/* Інше - тут тепер примітки */}
               {activeTab === 'other' && (
-                <div className="mb-8">
-                  <div className="dark-card rounded-xl p-6 border border-[#2a3f66]">
-                    <h3 className="text-xl font-semibold text-white mb-6">Технічні характеристики</h3>
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 text-sm">
+                <div className="mb-7">
+                  <div className="grid grid-cols-1 gap-5">
+                    <div>
+                      <label className="block text-sm font-medium text-[#8892b0] mb-2">Примітки</label>
+                      <textarea 
+                        value={formData.notes} 
+                        onChange={(e) => setFormData({...formData, notes: e.target.value})} 
+                        className="modern-input resize-none" 
+                        rows="5"
+                        placeholder="Додаткова інформація..."
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="dark-card rounded-xl p-5 border border-[#2a3f66] mt-5">
+                    <h3 className="text-xl font-semibold text-white mb-5">Технічні характеристики</h3>
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 text-sm">
                       <div className="space-y-3">
                         <div className="flex justify-between">
                           <span className="text-[#8892b0]">Процесор:</span>
@@ -742,7 +775,7 @@ const Workstations = () => {
                     setSelectedWorkstation(null); 
                     setFormData(initialFormData); 
                   }} 
-                  className="px-6 py-3 rounded-lg bg-[#0f0f23] text-[#8892b0] hover:text-white hover:bg-[#0e3460] transition-colors font-semibold"
+                  className="px-6 py-3 rounded-lg bg-[#0f0f23] text-[#8892b0] hover:text-white hover:bg-[#0e3460] transition-colors font-medium"
                 >
                   Скасувати
                 </button>
@@ -785,7 +818,7 @@ const Workstations = () => {
         </div>
       )}
 
-      {/* Модальне вікно деталей АРМ */}
+      {/* Модальне вікно деталей АРМ - додаємо MAC адресу сюди */}
       {showDetailsModal && selectedWorkstation && (
         <div className="fixed inset-0 modal-backdrop flex items-center justify-center z-50 p-4">
           <div className="modal-content rounded-xl p-8 w-full max-w-6xl max-h-[90vh] overflow-y-auto animate-fadeIn">
@@ -830,12 +863,6 @@ const Workstations = () => {
                       {grifLevels.find(g => g.value === selectedWorkstation.grif)?.name || selectedWorkstation.grif}
                     </span>
                   </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-[#8892b0]">Статус:</span>
-                    <span className={`status-badge ${workstationStatuses.find(s => s.value === selectedWorkstation.status)?.color || 'bg-gray-500 bg-opacity-20 text-gray-300'}`}>
-                      {workstationStatuses.find(s => s.value === selectedWorkstation.status)?.name || selectedWorkstation.status}
-                    </span>
-                  </div>
                 </div>
               </div>
 
@@ -846,11 +873,11 @@ const Workstations = () => {
                 <div className="space-y-4">
                   <div className="flex justify-between items-center">
                     <span className="text-[#8892b0]">IP адреса:</span>
-                    <span className="text-white font-mono">{selectedWorkstation.ip_address || 'N/A'}</span>
+                    <span className="text-white font-mono font-medium">{selectedWorkstation.ip_address || 'N/A'}</span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-[#8892b0]">MAC адреса:</span>
-                    <span className="text-white font-mono">{selectedWorkstation.mac_address || 'N/A'}</span>
+                    <span className="text-white font-mono font-medium">{selectedWorkstation.mac_address || 'N/A'}</span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-[#8892b0]">Мережа:</span>

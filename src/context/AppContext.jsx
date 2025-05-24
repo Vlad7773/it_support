@@ -12,6 +12,7 @@ export const AppProvider = ({ children }) => {
   const [repairs, setRepairs] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [workstationStatuses, setWorkstationStatuses] = useState([]);
+  const [grifLevels, setGrifLevels] = useState([]);
   const [selectedWorkstationSoftware, setSelectedWorkstationSoftware] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -31,14 +32,15 @@ export const AppProvider = ({ children }) => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [workstationsRes, usersRes, ticketsRes, repairsRes, departmentsRes, workstationStatusesRes] = await Promise.all([
+      const [workstationsRes, usersRes, ticketsRes, repairsRes, departmentsRes, workstationStatusesRes, grifLevelsRes] = await Promise.all([
         axios.get(`${API_URL}/workstations`),
         axios.get(`${API_URL}/users`),
         axios.get(`${API_URL}/tickets`),
         axios.get(`${API_URL}/repairs`),
         // Додаємо запити до нових ендпоінтів
         axios.get(`${API_URL}/departments`),
-        axios.get(`${API_URL}/workstationstatuses`)
+        axios.get(`${API_URL}/workstationstatuses`),
+        axios.get(`${API_URL}/griflevels`)
       ]);
 
       setWorkstations(workstationsRes.data);
@@ -48,6 +50,7 @@ export const AppProvider = ({ children }) => {
       // Встановлюємо отримані дані у відповідні стани
       setDepartments(departmentsRes.data);
       setWorkstationStatuses(workstationStatusesRes.data);
+      setGrifLevels(grifLevelsRes.data);
 
       setError(null);
     } catch (err) {
@@ -260,6 +263,7 @@ export const AppProvider = ({ children }) => {
     repairs,
     departments,
     workstationStatuses,
+    grifLevels,
     selectedWorkstationSoftware,
     loading,
     error,

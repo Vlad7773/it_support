@@ -1,268 +1,662 @@
-import React, { useState } from 'react';
-import { useApp } from '../context/AppContext';
-import {
-  PlusIcon,
+import React, { useState, useEffect } from 'react';
+import { 
   MagnifyingGlassIcon,
+  PlusIcon,
+  EllipsisVerticalIcon,
+  WrenchScrewdriverIcon,
+  ClockIcon,
+  CheckCircleIcon,
+  XCircleIcon,
+  PlayIcon,
+  UserIcon,
+  ComputerDesktopIcon,
+  XMarkIcon,
+  CurrencyDollarIcon
 } from '@heroicons/react/24/outline';
+import { useApp } from '../context/AppContext';
+import { useLocation } from 'react-router-dom';
 
 const Repairs = () => {
-  const { repairs, workstations, users, addRepair, updateRepair } = useApp();
+  const {
+    repairs: contextRepairs,
+    workstations,
+    users,
+    departments,
+    loading,
+    error,
+    addRepair,
+    updateRepair,
+    deleteRepair,
+  } = useApp();
+
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [selectedRepair, setSelectedRepair] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
-  const [newRepair, setNewRepair] = useState({
-    workstationId: '',
+  const [filterTechnician, setFilterTechnician] = useState('all');
+  const [filterWorkstation, setFilterWorkstation] = useState('all');
+  const [activeTab, setActiveTab] = useState('main');
+
+  const statusLevels = [
+    { id: 1, value: 'pending', name: 'Очікує', color: 'bg-blue-500 text-blue-100' },
+    { id: 2, value: 'in_progress', name: 'В процесі', color: 'bg-yellow-500 text-yellow-100' },
+    { id: 3, value: 'completed', name: 'Завершено', color: 'bg-green-500 text-green-100' },
+    { id: 4, value: 'cancelled', name: 'Скасовано', color: 'bg-gray-500 text-gray-100' }
+  ];
+
+  const initialFormData = {
+    workstation_id: '',
+    technician_id: '',
     description: '',
-    status: 'In Progress',
-    assignedPerformerId: '',
-    startDate: new Date().toISOString().split('T')[0],
-    endDate: '',
-  });
+    repair_date: new Date().toISOString().split('T')[0],
+    cost: '',
+    status: 'pending',
+  };
 
-  const handleAddRepair = async () => {
-    const assignedUser = users.find(u => u.id === parseInt(newRepair.assignedPerformerId));
+  const [formData, setFormData] = useState(initialFormData);
+  const [localRepairs, setLocalRepairs] = useState([]);
 
-    if (newRepair.assignedPerformerId && !assignedUser) {
-      console.error('Assigned performer not found');
+  useEffect(() => {
+    if (contextRepairs) {
+      setLocalRepairs(contextRepairs);
+    }
+  }, [contextRepairs]);
+
+  const location = useLocation();
+  useEffect(() => {
+    setShowAddModal(false);
+    setShowEditModal(false);
+    setShowDeleteModal(false);
+    setShowDetailsModal(false);
+    setSelectedRepair(null);
+  }, [location.pathname]);
+
+  // Автопідтягування відповідального користувача при виборі АРМ
+  const handleWorkstationChange = (workstationId) => {
+    setFormData(prev => ({ ...prev, workstation_id: workstationId }));
+    
+    if (workstationId) {
+      const workstation = workstations.find(w => w.id === parseInt(workstationId));
+      if (workstation && workstation.responsible_id) {
+        // Можна автоматично призначити відповідального як техніка або залишити на вибір
+        // setFormData(prev => ({ ...prev, technician_id: workstation.responsible_id.toString() }));
+      }
+    }
+  };
+
+  const handleAdd = async (e) => {
+    e.preventDefault();
+    
+    if (!formData.workstation_id || !formData.description || !formData.technician_id) {
+      alert('Будь ласка, заповніть обов\'язкові поля');
       return;
     }
-
-    const repairToAdd = {
-      workstation_id: parseInt(newRepair.workstationId),
-      description: newRepair.description,
-      status: newRepair.status,
-      assigned_performer_id: assignedUser ? assignedUser.id : null,
-      start_date: newRepair.startDate,
-      end_date: newRepair.endDate || null,
-    };
-
+    
     try {
-      await addRepair(repairToAdd);
+      const payload = {
+        ...formData,
+        workstation_id: parseInt(formData.workstation_id, 10),
+        technician_id: parseInt(formData.technician_id, 10),
+        cost: formData.cost ? parseFloat(formData.cost) : null,
+      };
+      await addRepair(payload);
       setShowAddModal(false);
-      setNewRepair({
-        workstationId: '',
-        description: '',
-        status: 'In Progress',
-        assignedPerformerId: '',
-        startDate: new Date().toISOString().split('T')[0],
-        endDate: '',
-      });
-    } catch (error) {
-      console.error('Failed to add repair:', error);
+      setActiveTab('main');
+      setFormData(initialFormData);
+    } catch (err) {
+      console.error("Failed to add repair:", err);
+      alert(`Помилка додавання ремонту: ${err.response?.data?.error || err.message}`);
     }
   };
 
-  const handleStatusChange = (repair, newStatus) => {
-    const assignedPerformer = users.find(u => u.name === repair.assigned_performer);
-
-    const updatedRepair = {
-      ...repair,
-      status: newStatus,
-      workstation_id: repair.workstation_id,
-      assigned_performer_id: assignedPerformer ? assignedPerformer.id : null,
-      end_date: newStatus === 'Completed' && !repair.end_date ? new Date().toISOString().split('T')[0] : repair.end_date
-    };
-
-    updateRepair(updatedRepair);
+  const handleEdit = async (e) => {
+    e.preventDefault();
+    
+    if (!formData.workstation_id || !formData.description || !formData.technician_id) {
+      alert('Будь ласка, заповніть обов\'язкові поля');
+      return;
+    }
+    
+    try {
+      const payload = {
+        ...formData,
+        workstation_id: parseInt(formData.workstation_id, 10),
+        technician_id: parseInt(formData.technician_id, 10),
+        cost: formData.cost ? parseFloat(formData.cost) : null,
+      };
+      await updateRepair(selectedRepair.id, payload);
+      setShowEditModal(false);
+      setActiveTab('main');
+      setSelectedRepair(null);
+      setFormData(initialFormData);
+    } catch (err) {
+      console.error("Failed to edit repair:", err);
+      alert(`Помилка оновлення ремонту: ${err.response?.data?.error || err.message}`);
+    }
   };
 
-  const getStatusColor = (status) => {
+  const handleDelete = async () => {
+    if (!selectedRepair) return;
+    try {
+      await deleteRepair(selectedRepair.id);
+      setShowDeleteModal(false);
+      setSelectedRepair(null);
+    } catch (err) {
+      console.error("Failed to delete repair:", err);
+      alert(`Помилка видалення ремонту: ${err.response?.data?.error || err.message}`);
+    }
+  };
+
+  const openEditModal = (repair) => {
+    setSelectedRepair(repair);
+    setFormData({
+      workstation_id: repair.workstation_id?.toString() || '',
+      technician_id: repair.technician_id?.toString() || '',
+      description: repair.description || '',
+      repair_date: repair.repair_date || new Date().toISOString().split('T')[0],
+      cost: repair.cost?.toString() || '',
+      status: repair.status || 'pending',
+    });
+    setShowEditModal(true);
+    setActiveTab('main');
+  };
+
+  const openDetailsModal = (repair) => {
+    setSelectedRepair(repair);
+    setShowDetailsModal(true);
+  };
+
+  const getStatusIcon = (status) => {
     switch (status) {
-      case 'In Progress':
-        return 'bg-yellow-500/20 text-yellow-400';
-      case 'Completed':
-        return 'bg-green-500/20 text-green-400';
-      case 'Pending':
-        return 'bg-red-500/20 text-red-400';
+      case 'pending':
+        return <ClockIcon className="h-4 w-4" />;
+      case 'in_progress':
+        return <PlayIcon className="h-4 w-4" />;
+      case 'completed':
+        return <CheckCircleIcon className="h-4 w-4" />;
+      case 'cancelled':
+        return <XCircleIcon className="h-4 w-4" />;
       default:
-        return 'bg-gray-500/20 text-gray-400';
+        return <WrenchScrewdriverIcon className="h-4 w-4" />;
     }
   };
 
-  const filteredRepairs = (repairs || []).filter(repair => {
-    const matchesSearch =
-      (repair.workstation?.toLowerCase()?.includes(searchTerm.toLowerCase()) ||
-       repair.description?.toLowerCase()?.includes(searchTerm.toLowerCase()) ||
-       repair.assigned_performer?.toLowerCase()?.includes(searchTerm.toLowerCase()) ||
-       repair.status?.toLowerCase()?.includes(searchTerm.toLowerCase()));
+  const filteredRepairs = (localRepairs || []).filter(repair => {
+    const workstation = workstations.find(w => w.id === repair.workstation_id);
+    const technician = users.find(u => u.id === repair.technician_id);
+
+    const matchesSearch = 
+      repair.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      workstation?.inventory_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      technician?.full_name?.toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchesStatus = filterStatus === 'all' || repair.status === filterStatus;
+    const matchesTechnician = filterTechnician === 'all' || repair.technician_id === parseInt(filterTechnician);
+    const matchesWorkstation = filterWorkstation === 'all' || repair.workstation_id === parseInt(filterWorkstation);
 
-    return matchesSearch && matchesStatus;
+    return matchesSearch && matchesStatus && matchesTechnician && matchesWorkstation;
   });
 
+  if (loading) return (
+    <div className="p-6 flex items-center justify-center h-96">
+      <div className="text-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-400 mx-auto mb-4"></div>
+        <p className="text-gray-400">Завантаження ремонтів...</p>
+      </div>
+    </div>
+  );
+
+  if (error && !localRepairs.length) return (
+    <div className="p-6 text-center">
+      <p className="text-red-400">Помилка завантаження ремонтів: {error}</p>
+    </div>
+  );
+
   return (
-    <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-semibold text-white">Ремонти</h1>
+    <div className="p-6 space-y-6">
+      {/* Header */}
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-2xl font-semibold text-white">Ремонти</h1>
+          <p className="text-gray-400 mt-1">Управління ремонтними роботами та технічним обслуговуванням</p>
+        </div>
         <button
-          onClick={() => setShowAddModal(true)}
+          onClick={() => {
+            setFormData(initialFormData);
+            setShowAddModal(true);
+            setActiveTab('main');
+          }}
           className="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors"
         >
           <PlusIcon className="h-5 w-5" />
-          Додати ремонт
+          Створити ремонт
         </button>
       </div>
 
-      <div className="bg-dark-card rounded-lg shadow-card overflow-hidden">
-        <div className="p-4 border-b border-dark-border">
-          <div className="flex flex-wrap items-center gap-4">
-            <div className="relative flex-1 min-w-[200px]">
-              <input
-                type="text"
-                placeholder="Пошук..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full bg-dark-bg border border-dark-border rounded-lg pl-10 pr-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
-              />
-              <MagnifyingGlassIcon className="h-5 w-5 text-dark-textSecondary absolute left-3 top-1/2 transform -translate-y-1/2" />
-            </div>
-            <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-              className="bg-dark-bg border border-dark-border rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
-            >
-              <option value="all">Всі статуси</option>
-              <option value="In Progress">В процесі</option>
-              <option value="Completed">Завершено</option>
-            </select>
+      {/* Компактні фільтри */}
+      <div className="bg-dark-card rounded-lg shadow-card p-4">
+        <div className="flex flex-wrap items-center gap-4">
+          {/* Пошук */}
+          <div className="relative flex-1 min-w-[250px]">
+            <input
+              type="text"
+              placeholder="Пошук за описом, АРМ, технік..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full bg-dark-bg border border-dark-border rounded-lg pl-10 pr-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+            />
+            <MagnifyingGlassIcon className="h-5 w-5 text-dark-textSecondary absolute left-3 top-1/2 transform -translate-y-1/2" />
           </div>
-        </div>
+          
+          {/* Фільтри */}
+          <select
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value)}
+            className="bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+          >
+            <option value="all">Всі статуси</option>
+            {statusLevels.map(status => (
+              <option key={status.id} value={status.value}>{status.name}</option>
+            ))}
+          </select>
 
+          <select
+            value={filterTechnician}
+            onChange={(e) => setFilterTechnician(e.target.value)}
+            className="bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+          >
+            <option value="all">Всі техніки</option>
+            {users.filter(u => u.role === 'admin').map(user => (
+              <option key={user.id} value={user.id}>{user.full_name}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      {/* Таблиця */}
+      <div className="bg-dark-card rounded-lg shadow-card overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="min-w-full">
-            <thead>
-              <tr className="border-b border-dark-border">
-                <th className="text-left py-3 px-4 text-dark-textSecondary">ID</th>
-                <th className="text-left py-3 px-4 text-dark-textSecondary">АРМ</th>
-                <th className="text-left py-3 px-4 text-dark-textSecondary">Опис</th>
-                <th className="text-left py-3 px-4 text-dark-textSecondary">Статус</th>
-                <th className="text-left py-3 px-4 text-dark-textSecondary">Виконавець</th>
-                <th className="text-left py-3 px-4 text-dark-textSecondary">Дата початку</th>
-                <th className="text-left py-3 px-4 text-dark-textSecondary">Дата завершення</th>
-                <th className="text-left py-3 px-4 text-dark-textSecondary">Дії</th>
+          <table className="w-full">
+            <thead className="bg-dark-hover">
+              <tr className="text-left text-dark-textSecondary text-sm">
+                <th className="px-6 py-4 font-semibold">ID</th>
+                <th className="px-6 py-4 font-semibold">АРМ</th>
+                <th className="px-6 py-4 font-semibold">Опис роботи</th>
+                <th className="px-6 py-4 font-semibold">Статус</th>
+                <th className="px-6 py-4 font-semibold">Технік</th>
+                <th className="px-6 py-4 font-semibold">Дата ремонту</th>
+                <th className="px-6 py-4 font-semibold">Вартість</th>
+                <th className="px-6 py-4 font-semibold text-center">Дії</th>
               </tr>
             </thead>
-            <tbody>
-              {filteredRepairs.map((repair) => (
-                <tr key={repair.id} className="border-b border-dark-border hover:bg-dark-bg">
-                  <td className="py-3 px-4 text-white">{repair.id}</td>
-                  <td className="py-3 px-4 text-white">{repair.workstation}</td>
-                  <td className="py-3 px-4 text-white">{repair.description}</td>
-                  <td className="py-3 px-4">
-                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        getStatusColor(repair.status)
-                      }`}>
-                        {repair.status === 'In Progress' && 'В процесі'}
-                        {repair.status === 'Completed' && 'Завершено'}
-                         {!['In Progress', 'Completed'].includes(repair.status) && repair.status}
-                      </span>
-                  </td>
-                  <td className="py-3 px-4 text-white">{repair.assigned_performer || 'Не призначено'}</td>
-                  <td className="py-3 px-4 text-white">{new Date(repair.start_date).toLocaleDateString()}</td>
-                  <td className="py-3 px-4 text-white">{repair.end_date ? new Date(repair.end_date).toLocaleDateString() : 'В процесі'}</td>
-                  <td className="py-3 px-4">
-                    <select
-                      value={repair.status}
-                      onChange={(e) => handleStatusChange(repair, e.target.value)}
-                      className="bg-dark-bg border border-dark-border rounded-lg px-2 py-1 text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
-                    >
-                      <option value="In Progress">В процесі</option>
-                      <option value="Completed">Завершено</option>
-                    </select>
+            <tbody className="divide-y divide-dark-border">
+              {filteredRepairs.length > 0 ? filteredRepairs.map(repair => {
+                const workstation = workstations.find(w => w.id === repair.workstation_id);
+                const technician = users.find(u => u.id === repair.technician_id);
+                const statusObj = statusLevels.find(s => s.value === repair.status);
+                
+                return (
+                  <tr key={repair.id} className="hover:bg-dark-hover transition-colors">
+                    <td className="px-6 py-4 text-white font-medium">RP-{String(repair.id).padStart(3, '0')}</td>
+                    <td className="px-6 py-4 text-gray-300">{workstation?.inventory_number || '-'}</td>
+                    <td className="px-6 py-4 text-gray-300 max-w-[300px] truncate">{repair.description}</td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-2">
+                        {getStatusIcon(repair.status)}
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusObj?.color || 'bg-gray-500 text-gray-100'}`}>
+                          {statusObj?.name || repair.status}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-gray-300">{technician?.full_name || '-'}</td>
+                    <td className="px-6 py-4 text-gray-300">{repair.repair_date ? new Date(repair.repair_date).toLocaleDateString('uk-UA') : '-'}</td>
+                    <td className="px-6 py-4 text-gray-300">{repair.cost ? `₴${parseFloat(repair.cost).toFixed(2)}` : '-'}</td>
+                    <td className="px-6 py-4 text-center">
+                      <button
+                        onClick={() => openDetailsModal(repair)}
+                        className="text-gray-400 hover:text-white p-1 rounded transition-colors"
+                        title="Деталі"
+                      >
+                        <EllipsisVerticalIcon className="h-5 w-5" />
+                      </button>
+                    </td>
+                  </tr>
+                );
+              }) : (
+                <tr>
+                  <td colSpan="8" className="text-center py-12 text-dark-textSecondary">
+                    <WrenchScrewdriverIcon className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p>Немає ремонтів, що відповідають фільтрам</p>
                   </td>
                 </tr>
-              ))}
+              )}
             </tbody>
           </table>
         </div>
       </div>
 
-      {showAddModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-dark-card p-6 rounded-lg w-[500px]">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-semibold text-white">Додати ремонт</h2>
-              <button
-                onClick={() => setShowAddModal(false)}
-                className="text-dark-textSecondary hover:text-white"
-              >
-                ✕
+      {/* Модальне вікно додавання/редагування ремонту */}
+      {(showAddModal || showEditModal) && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
+          <div className="bg-dark-card rounded-lg shadow-xl p-6 w-full max-w-3xl max-h-full overflow-y-auto">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold text-white">{showAddModal ? 'Створити ремонт' : 'Редагувати ремонт'}</h2>
+              <button onClick={() => {
+                showAddModal ? setShowAddModal(false) : setShowEditModal(false);
+                setActiveTab('main');
+                setSelectedRepair(null);
+                setFormData(initialFormData);
+              }} className="text-dark-textSecondary hover:text-white">
+                <XMarkIcon className="h-6 w-6" />
               </button>
             </div>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-dark-textSecondary mb-1">АРМ</label>
-                <select
-                  value={newRepair.workstationId}
-                  onChange={(e) => setNewRepair({ ...newRepair, workstationId: e.target.value })}
-                  className="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
-                >
-                  <option value="">Виберіть АРМ</option>
-                  {workstations.map((ws) => (
-                    <option key={ws.id} value={ws.id}>
-                      {ws.name} - {ws.department}
-                    </option>
-                  ))}
-                </select>
+            
+            <form onSubmit={showAddModal ? handleAdd : handleEdit}>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                <div>
+                  <label className="block text-sm font-medium text-dark-textSecondary mb-1">
+                    АРМ <span className="text-red-500">*</span>
+                  </label>
+                  <select 
+                    value={formData.workstation_id} 
+                    onChange={(e) => handleWorkstationChange(e.target.value)} 
+                    className="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-white focus:ring-primary-500 focus:border-primary-500" 
+                    required
+                  >
+                    <option value="">Виберіть АРМ</option>
+                    {workstations.map(ws => (
+                      <option key={ws.id} value={ws.id}>
+                        {ws.inventory_number} - {departments.find(d => d.id === ws.department_id)?.name || 'Без підрозділу'}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-dark-textSecondary mb-1">
+                    Технік <span className="text-red-500">*</span>
+                  </label>
+                  <select 
+                    value={formData.technician_id} 
+                    onChange={(e) => setFormData({...formData, technician_id: e.target.value})} 
+                    className="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-white focus:ring-primary-500 focus:border-primary-500" 
+                    required
+                  >
+                    <option value="">Виберіть техніка</option>
+                    {users.filter(u => u.role === 'admin').map(user => (
+                      <option key={user.id} value={user.id}>
+                        {user.full_name} - {departments.find(d => d.id === user.department_id)?.name || 'Без підрозділу'}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-dark-textSecondary mb-1">
+                    Опис ремонтних робіт <span className="text-red-500">*</span>
+                  </label>
+                  <textarea 
+                    value={formData.description} 
+                    onChange={(e) => setFormData({...formData, description: e.target.value})} 
+                    className="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-white focus:ring-primary-500 focus:border-primary-500" 
+                    rows="4"
+                    placeholder="Детально опишіть виконані роботи..."
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-dark-textSecondary mb-1">Дата ремонту</label>
+                  <input 
+                    type="date"
+                    value={formData.repair_date} 
+                    onChange={(e) => setFormData({...formData, repair_date: e.target.value})} 
+                    className="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-white focus:ring-primary-500 focus:border-primary-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-dark-textSecondary mb-1">Вартість ремонту (₴)</label>
+                  <input 
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={formData.cost} 
+                    onChange={(e) => setFormData({...formData, cost: e.target.value})} 
+                    className="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-white focus:ring-primary-500 focus:border-primary-500"
+                    placeholder="0.00"
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-dark-textSecondary mb-1">Статус</label>
+                  <select 
+                    value={formData.status} 
+                    onChange={(e) => setFormData({...formData, status: e.target.value})} 
+                    className="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-white focus:ring-primary-500 focus:border-primary-500"
+                  >
+                    {statusLevels.map(status => (
+                      <option key={status.id} value={status.value}>{status.name}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
-              <div>
-                <label className="block text-dark-textSecondary mb-1">Опис роботи</label>
-                <textarea
-                  value={newRepair.description}
-                  onChange={(e) => setNewRepair({ ...newRepair, description: e.target.value })}
-                  className="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
-                  placeholder="Опишіть виконану роботу"
-                  rows="3"
-                />
-              </div>
-               <div> 
-                <label className="block text-dark-textSecondary mb-1">Призначений виконавець</label>
-                 <select
-                  value={newRepair.assignedPerformerId}
-                  onChange={(e) => setNewRepair({ ...newRepair, assignedPerformerId: e.target.value })}
-                  className="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
-                >
-                  <option value="">Не призначено</option>
-                  {users.map((user) => (
-                    <option key={user.id} value={user.id}>
-                      {user.name} ({user.login})
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-dark-textSecondary mb-1">Дата початку</label>
-                <input
-                  type="date"
-                  value={newRepair.startDate}
-                  onChange={(e) => setNewRepair({ ...newRepair, startDate: e.target.value })}
-                  className="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-dark-textSecondary mb-1">Дата завершення</label>
-                <input
-                  type="date"
-                  value={newRepair.endDate}
-                  onChange={(e) => setNewRepair({ ...newRepair, endDate: e.target.value })}
-                  className="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
-                />
-              </div>
-              
-              <div className="flex justify-end space-x-2">
-                <button
-                  onClick={() => setShowAddModal(false)}
-                  className="px-4 py-2 text-dark-textSecondary hover:text-white"
+
+              <div className="flex justify-end space-x-3">
+                <button 
+                  type="button" 
+                  onClick={() => { 
+                    showAddModal ? setShowAddModal(false) : setShowEditModal(false); 
+                    setActiveTab('main'); 
+                    setSelectedRepair(null); 
+                    setFormData(initialFormData); 
+                  }} 
+                  className="px-4 py-2 rounded-lg bg-dark-bg text-dark-textSecondary hover:bg-dark-hover transition-colors"
                 >
                   Скасувати
                 </button>
+                <button 
+                  type="submit" 
+                  className="px-4 py-2 rounded-lg bg-primary-600 text-white hover:bg-primary-700 transition-colors"
+                >
+                  {showAddModal ? 'Створити' : 'Зберегти'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Модальне вікно підтвердження видалення */}
+      {showDeleteModal && selectedRepair && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
+          <div className="bg-dark-card rounded-lg p-6 w-full max-w-md">
+            <h3 className="text-xl font-semibold text-white mb-4">Підтвердити видалення</h3>
+            <p className="text-dark-textSecondary mb-6">
+              Ви впевнені, що хочете видалити ремонт "RP-{String(selectedRepair.id).padStart(3, '0')}"? 
+              Цю дію неможливо буде скасувати.
+            </p>
+            <div className="flex justify-end space-x-3">
+              <button 
+                onClick={() => setShowDeleteModal(false)} 
+                className="px-4 py-2 rounded-lg bg-dark-bg text-dark-textSecondary hover:bg-dark-hover transition-colors"
+              >
+                Скасувати
+              </button>
+              <button 
+                onClick={handleDelete} 
+                className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors"
+              >
+                Видалити
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Модальне вікно деталей ремонту */}
+      {showDetailsModal && selectedRepair && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
+          <div className="bg-dark-card rounded-lg shadow-xl p-6 w-full max-w-4xl max-h-full overflow-y-auto">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold text-white">
+                Деталі ремонту: RP-{String(selectedRepair.id).padStart(3, '0')}
+              </h2>
+              <button 
+                onClick={() => setShowDetailsModal(false)} 
+                className="text-dark-textSecondary hover:text-white"
+              >
+                <XMarkIcon className="h-6 w-6" />
+              </button>
+            </div>
+            
+            {/* Основна інформація */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-white border-b border-dark-border pb-2">
+                  Загальна інформація
+                </h3>
+                <div className="space-y-3">
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Номер ремонту:</span>
+                    <span className="text-white font-medium">RP-{String(selectedRepair.id).padStart(3, '0')}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">АРМ:</span>
+                    <span className="text-white">{workstations.find(w => w.id === selectedRepair.workstation_id)?.inventory_number || 'N/A'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Технік:</span>
+                    <span className="text-white">{users.find(u => u.id === selectedRepair.technician_id)?.full_name || 'N/A'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Відділ:</span>
+                    <span className="text-white">
+                      {(() => {
+                        const workstation = workstations.find(w => w.id === selectedRepair.workstation_id);
+                        const department = departments.find(d => d.id === workstation?.department_id);
+                        return department?.name || 'N/A';
+                      })()}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Дата ремонту:</span>
+                    <span className="text-white">{selectedRepair.repair_date ? new Date(selectedRepair.repair_date).toLocaleDateString('uk-UA') : 'Не вказано'}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-white border-b border-dark-border pb-2">
+                  Статус та вартість
+                </h3>
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-400">Статус:</span>
+                    <div className="flex items-center gap-2">
+                      {getStatusIcon(selectedRepair.status)}
+                      <span className={`px-2 py-1 rounded text-xs ${statusLevels.find(s => s.value === selectedRepair.status)?.color || 'bg-gray-500 text-gray-100'}`}>
+                        {statusLevels.find(s => s.value === selectedRepair.status)?.name || selectedRepair.status}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-400">Вартість:</span>
+                    <div className="flex items-center gap-2">
+                      <CurrencyDollarIcon className="h-4 w-4 text-green-400" />
+                      <span className="text-white font-medium">
+                        {selectedRepair.cost ? `₴${parseFloat(selectedRepair.cost).toFixed(2)}` : 'Не вказано'}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Дата створення:</span>
+                    <span className="text-white">{new Date(selectedRepair.created_at).toLocaleDateString('uk-UA')}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Останнє оновлення:</span>
+                    <span className="text-white">{new Date(selectedRepair.updated_at).toLocaleDateString('uk-UA')}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Опис ремонтних робіт */}
+            <div className="mb-6">
+              <h3 className="text-lg font-semibold text-white border-b border-dark-border pb-2 mb-4">
+                Опис ремонтних робіт
+              </h3>
+              <div className="bg-dark-bg rounded-lg p-4">
+                <p className="text-white whitespace-pre-wrap">{selectedRepair.description}</p>
+              </div>
+            </div>
+
+            {/* Технічна інформація АРМ */}
+            {(() => {
+              const workstation = workstations.find(w => w.id === selectedRepair.workstation_id);
+              if (!workstation) return null;
+              
+              return (
+                <div className="mb-6">
+                  <h3 className="text-lg font-semibold text-white border-b border-dark-border pb-2 mb-4">
+                    Технічна інформація АРМ
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div className="bg-dark-bg rounded-lg p-4">
+                      <div className="text-gray-400 text-sm">IP адреса</div>
+                      <div className="text-white font-medium font-mono">{workstation.ip_address || 'Не вказано'}</div>
+                    </div>
+                    <div className="bg-dark-bg rounded-lg p-4">
+                      <div className="text-gray-400 text-sm">MAC адреса</div>
+                      <div className="text-white font-medium font-mono">{workstation.mac_address || 'Не вказано'}</div>
+                    </div>
+                    <div className="bg-dark-bg rounded-lg p-4">
+                      <div className="text-gray-400 text-sm">Операційна система</div>
+                      <div className="text-white font-medium">{workstation.os_name || 'Не вказано'}</div>
+                    </div>
+                    <div className="bg-dark-bg rounded-lg p-4">
+                      <div className="text-gray-400 text-sm">Процесор</div>
+                      <div className="text-white font-medium">{workstation.processor || 'Не вказано'}</div>
+                    </div>
+                    <div className="bg-dark-bg rounded-lg p-4">
+                      <div className="text-gray-400 text-sm">ОЗУ</div>
+                      <div className="text-white font-medium">{workstation.ram || 'Не вказано'}</div>
+                    </div>
+                    <div className="bg-dark-bg rounded-lg p-4">
+                      <div className="text-gray-400 text-sm">Накопичувач</div>
+                      <div className="text-white font-medium">{workstation.storage || 'Не вказано'}</div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Дії */}
+            <div className="flex justify-between items-center">
+              <div className="flex space-x-3">
                 <button
-                  onClick={handleAddRepair}
+                  onClick={() => openEditModal(selectedRepair)}
                   className="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg transition-colors"
                 >
-                  Додати
+                  Редагувати
+                </button>
+                <button
+                  onClick={() => {
+                    setShowDetailsModal(false);
+                    setShowDeleteModal(true);
+                  }}
+                  className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition-colors"
+                >
+                  Видалити
+                </button>
+              </div>
+              <div className="flex space-x-3">
+                <button className="bg-dark-bg hover:bg-dark-hover text-white px-4 py-2 rounded-lg transition-colors">
+                  АРМ
+                </button>
+                <button className="bg-dark-bg hover:bg-dark-hover text-white px-4 py-2 rounded-lg transition-colors">
+                  Заявки
+                </button>
+                <button className="bg-dark-bg hover:bg-dark-hover text-white px-4 py-2 rounded-lg transition-colors">
+                  Історія
                 </button>
               </div>
             </div>

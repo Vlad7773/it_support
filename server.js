@@ -84,6 +84,12 @@ app.post('/api/workstations', async (req, res) => {
     responsible_id, 
     contacts, 
     notes, 
+    processor,
+    ram,
+    storage,
+    monitor,
+    network,
+    type,
     status, 
     registration_date 
   } = req.body;
@@ -95,8 +101,8 @@ app.post('/api/workstations', async (req, res) => {
   try {
     const result = await run(
       `INSERT INTO workstations 
-       (inventory_number, ip_address, mac_address, grif, os_name, department_id, responsible_id, contacts, notes, status, registration_date) 
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       (inventory_number, ip_address, mac_address, grif, os_name, department_id, responsible_id, contacts, notes, processor, ram, storage, monitor, network, type, status, registration_date) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         inventory_number, 
         ip_address, 
@@ -107,6 +113,12 @@ app.post('/api/workstations', async (req, res) => {
         responsible_id, 
         contacts, 
         notes, 
+        processor,
+        ram,
+        storage,
+        monitor,
+        network,
+        type || 'Десктоп',
         status || 'operational', 
         registration_date || new Date().toISOString().split('T')[0]
       ]
@@ -139,6 +151,12 @@ app.put('/api/workstations/:id', async (req, res) => {
     responsible_id, 
     contacts, 
     notes, 
+    processor,
+    ram,
+    storage,
+    monitor,
+    network,
+    type,
     status 
   } = req.body;
   
@@ -150,7 +168,8 @@ app.put('/api/workstations/:id', async (req, res) => {
     await run(
       `UPDATE workstations 
        SET inventory_number = ?, ip_address = ?, mac_address = ?, grif = ?, os_name = ?, 
-           department_id = ?, responsible_id = ?, contacts = ?, notes = ?, status = ?, 
+           department_id = ?, responsible_id = ?, contacts = ?, notes = ?, processor = ?, 
+           ram = ?, storage = ?, monitor = ?, network = ?, type = ?, status = ?, 
            updated_at = CURRENT_TIMESTAMP
        WHERE id = ?`,
       [
@@ -163,6 +182,12 @@ app.put('/api/workstations/:id', async (req, res) => {
         responsible_id, 
         contacts, 
         notes, 
+        processor,
+        ram,
+        storage,
+        monitor,
+        network,
+        type,
         status, 
         id
       ]
@@ -343,6 +368,40 @@ app.get('/api/departments', async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
+// WORKSTATION STATUSES API  
+app.get('/api/workstationstatuses', async (req, res) => {
+  try {
+    // Статичні статуси для робочих станцій
+    const statuses = [
+      { id: 1, value: 'operational', name: 'Працює', color: 'bg-green-500 text-green-100' },
+      { id: 2, value: 'maintenance', name: 'Обслуговування', color: 'bg-yellow-500 text-yellow-100' },
+      { id: 3, value: 'repair', name: 'Ремонт', color: 'bg-red-500 text-red-100' },
+      { id: 4, value: 'decommissioned', name: 'Списано', color: 'bg-gray-500 text-gray-100' }
+    ];
+    res.json(statuses);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GRIF LEVELS API
+app.get('/api/griflevels', async (req, res) => {
+  try {
+    // Статичні рівні грифів
+    const grifLevels = [
+      { id: 1, value: 'Відкрито', name: 'Відкрито', color: 'bg-blue-500 text-blue-100' },
+      { id: 2, value: 'ДСК', name: 'ДСК', color: 'bg-green-500 text-green-100' },
+      { id: 3, value: 'Таємно', name: 'Таємно', color: 'bg-yellow-500 text-yellow-100' },
+      { id: 4, value: 'Цілком таємно', name: 'Цілком таємно', color: 'bg-orange-500 text-orange-100' },
+      { id: 5, value: 'Особливої важливості', name: 'Особливої важливості', color: 'bg-red-500 text-red-100' }
+    ];
+    res.json(grifLevels);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // CRUD для departments можна додати за аналогією, якщо потрібно
 
 

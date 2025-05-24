@@ -34,6 +34,13 @@ CREATE TABLE IF NOT EXISTS workstations (
     responsible_id INTEGER REFERENCES users(id),
     contacts TEXT,
     notes TEXT,
+    -- Технічні характеристики
+    processor TEXT,
+    ram TEXT,
+    storage TEXT,
+    monitor TEXT,
+    network TEXT,
+    type TEXT CHECK(type IN ('Десктоп', 'Ноутбук', 'Моноблок', 'Сервер')) DEFAULT 'Десктоп',
     status TEXT NOT NULL CHECK(status IN ('operational', 'maintenance', 'repair', 'decommissioned')) DEFAULT 'operational',
     registration_date DATE DEFAULT (date('now')),
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -101,12 +108,12 @@ INSERT OR IGNORE INTO users (username, password, full_name, email, role, departm
 ('ivanov.ivan', 'temp_password', 'Іванов Іван Іванович', 'ivanov@company.com', 'user', 6);
 
 -- Додаємо робочі станції з розширеними даними
-INSERT OR IGNORE INTO workstations (inventory_number, ip_address, mac_address, grif, os_name, department_id, responsible_id, contacts, notes, status, registration_date) VALUES
-('АРМ-001', '192.168.1.101', '00:1A:2B:3C:4D:01', 'Особливої важливості', 'Windows 11 Pro', 2, 2, '+380503456790', '', 'operational', '2024-01-01'),
-('АРМ-002', '192.168.1.102', '00:1A:2B:3C:4D:02', 'Цілком таємно', 'Windows 10 Pro', 3, 3, '+380503456791', '', 'operational', '2024-01-02'),
-('АРМ-003', '192.168.1.103', '00:1A:2B:3C:4D:03', 'Таємно', 'Windows 11 Pro', 4, 4, '+380503456792', 'Примітка для АРМ-003', 'maintenance', '2024-01-03'),
-('АРМ-004', '192.168.1.104', '00:1A:2B:3C:4D:04', 'ДСК', 'Windows 10 Pro', 5, 5, '+380503456793', '', 'operational', '2024-01-04'),
-('АРМ-005', '192.168.1.105', '00:1A:2B:3C:4D:05', 'Особливої важливості', 'Ubuntu 22.04', 1, 6, '+380503456794', '', 'operational', '2024-01-05');
+INSERT OR IGNORE INTO workstations (inventory_number, ip_address, mac_address, grif, os_name, department_id, responsible_id, contacts, notes, processor, ram, storage, monitor, network, type, status, registration_date) VALUES
+('АРМ-001', '192.168.1.101', '00:1A:2B:3C:4D:01', 'Особливої важливості', 'Windows 11 Pro', 2, 2, '+380503456790', '', 'Intel Core i7-12700', '16 ГБ DDR4', 'SSD 512 ГБ', 'Dell 24" 1920x1080', 'Gigabit Ethernet', 'Десктоп', 'operational', '2024-01-01'),
+('АРМ-002', '192.168.1.102', '00:1A:2B:3C:4D:02', 'Цілком таємно', 'Windows 10 Pro', 3, 3, '+380503456791', '', 'AMD Ryzen 5 5600X', '32 ГБ DDR4', 'SSD 1 ТБ', 'Samsung 27" 2560x1440', 'Wi-Fi + Ethernet', 'Десктоп', 'operational', '2024-01-02'),
+('АРМ-003', '192.168.1.103', '00:1A:2B:3C:4D:03', 'Таємно', 'Windows 11 Pro', 4, 4, '+380503456792', 'Примітка для АРМ-003', 'Intel Core i5-11400', '8 ГБ DDR4', 'HDD 1 ТБ + SSD 256 ГБ', 'LG 22" 1920x1080', 'Ethernet', 'Десктоп', 'maintenance', '2024-01-03'),
+('АРМ-004', '192.168.1.104', '00:1A:2B:3C:4D:04', 'ДСК', 'Windows 10 Pro', 5, 5, '+380503456793', '', 'Intel Core i3-10100', '8 ГБ DDR4', 'SSD 256 ГБ', 'HP 21.5" 1920x1080', 'Ethernet', 'Десктоп', 'operational', '2024-01-04'),
+('АРМ-005', '192.168.1.105', '00:1A:2B:3C:4D:05', 'Особливої важливості', 'Ubuntu 22.04', 1, 6, '+380503456794', '', 'Intel Xeon E-2224', '64 ГБ DDR4 ECC', 'SSD 2 ТБ NVMe', 'Dual Dell 24"', '10 Gigabit Ethernet', 'Сервер', 'operational', '2024-01-05');
 
 -- Додаємо заявки
 INSERT OR IGNORE INTO tickets (user_id, workstation_id, description, status, priority, assigned_to) VALUES

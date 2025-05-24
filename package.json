@@ -28,14 +28,13 @@
     "start:all": "concurrently \"npm run server\" \"npm run dev\""
   },
   "devDependencies": {
-    "@tailwindcss/postcss": "^4.1.7",
     "@types/react": "^19.1.5",
     "@types/react-dom": "^19.1.5",
     "@vitejs/plugin-react": "^4.5.0",
     "autoprefixer": "^10.4.21",
     "concurrently": "^9.1.2",
     "postcss": "^8.5.3",
-    "tailwindcss": "^4.1.7",
+    "tailwindcss": "^3.4.4",
     "vite": "^6.3.5"
   }
 }

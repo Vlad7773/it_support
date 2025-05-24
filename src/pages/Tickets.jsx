@@ -1,349 +1,720 @@
-import React, { useState } from 'react';
-import { useApp } from '../context/AppContext';
-import {
+import React, { useState, useEffect } from 'react';
+import { 
+  MagnifyingGlassIcon,
+  PlusIcon,
+  EllipsisVerticalIcon,
+  TicketIcon,
   ClockIcon,
   CheckCircleIcon,
   XCircleIcon,
-  PlusIcon,
-  MagnifyingGlassIcon,
+  ExclamationTriangleIcon,
+  UserIcon,
+  ComputerDesktopIcon,
+  XMarkIcon
 } from '@heroicons/react/24/outline';
+import { useApp } from '../context/AppContext';
+import { useLocation } from 'react-router-dom';
 
 const Tickets = () => {
-  const { tickets, workstations, users, addTicket, updateTicket, addRepair } = useApp();
+  const {
+    tickets: contextTickets,
+    workstations,
+    users,
+    departments,
+    loading,
+    error,
+    addTicket,
+    updateTicket,
+    deleteTicket,
+  } = useApp();
+
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [selectedTicket, setSelectedTicket] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
-  const [newTicket, setNewTicket] = useState({
-    workstationId: '',
-    type: '',
+  const [filterPriority, setFilterPriority] = useState('all');
+  const [filterWorkstation, setFilterWorkstation] = useState('all');
+  const [filterAssignee, setFilterAssignee] = useState('all');
+  const [activeTab, setActiveTab] = useState('main');
+
+  const priorityLevels = [
+    { id: 1, value: 'low', name: 'Низький', color: 'bg-blue-500 text-blue-100' },
+    { id: 2, value: 'medium', name: 'Середній', color: 'bg-yellow-500 text-yellow-100' },
+    { id: 3, value: 'high', name: 'Високий', color: 'bg-orange-500 text-orange-100' },
+    { id: 4, value: 'critical', name: 'Критичний', color: 'bg-red-500 text-red-100' }
+  ];
+
+  const statusLevels = [
+    { id: 1, value: 'open', name: 'Відкрита', color: 'bg-blue-500 text-blue-100' },
+    { id: 2, value: 'in_progress', name: 'В процесі', color: 'bg-yellow-500 text-yellow-100' },
+    { id: 3, value: 'resolved', name: 'Вирішена', color: 'bg-green-500 text-green-100' },
+    { id: 4, value: 'closed', name: 'Закрита', color: 'bg-gray-500 text-gray-100' }
+  ];
+
+  const initialFormData = {
+    workstation_id: '',
     description: '',
-    status: 'Pending',
-    priority: 'Medium',
-    createdByUserId: '',
-    assignedPerformerId: '',
-  });
-
-  const handleAddTicket = async () => {
-    // const creatingUser = users.find(u => u.name === newTicket.createdByUserId); // Змінено
-    // const assignedUser = users.find(u => u.name === newTicket.assignedPerformerId); // Змінено
-
-    const creatingUser = users.find(u => u.id === parseInt(newTicket.createdByUserId));
-    const assignedUser = newTicket.assignedPerformerId ? users.find(u => u.id === parseInt(newTicket.assignedPerformerId)) : null;
-
-    if (!creatingUser) {
-      console.error('Creating user not found');
-      return;
-    }
-    if (newTicket.assignedPerformerId && !assignedUser) {
-      console.error('Assigned performer not found');
-      return;
-    }
-
-    const ticketToAdd = {
-      workstation_id: parseInt(newTicket.workstationId),
-      type: newTicket.type,
-      description: newTicket.description,
-      status: newTicket.status,
-      priority: newTicket.priority,
-      created_by_user_id: creatingUser.id,
-      assigned_performer_id: assignedUser ? assignedUser.id : null,
-    };
-
-    try {
-      await addTicket(ticketToAdd);
-      setShowAddModal(false);
-      setNewTicket({
-        workstationId: '',
-        type: '',
-        description: '',
-        status: 'Pending',
-        priority: 'Medium',
-        createdByUserId: '',
-        assignedPerformerId: '',
-      });
-    } catch (error) {
-      console.error('Failed to add ticket:', error);
-    }
+    status: 'open',
+    priority: 'medium',
+    assigned_to: '',
+    user_id: '', // Хто створив заявку
   };
 
-  const handleStatusChange = (ticket, newStatus) => {
-    // const assignedUser = users.find(u => u.name === ticket.assigned_performer); // Змінено
-    const assignedUser = ticket.assigned_performer_id ? users.find(u => u.id === ticket.assigned_performer_id) : null;
+  const [formData, setFormData] = useState(initialFormData);
+  const [localTickets, setLocalTickets] = useState([]);
 
-    const updatedTicket = {
-      ...ticket,
-      status: newStatus,
-      workstation_id: ticket.workstation_id,
-      created_by_user_id: ticket.created_by_user_id, // Переконуємось, що передаємо ID
-      assigned_performer_id: assignedUser ? assignedUser.id : null,
-    };
+  useEffect(() => {
+    if (contextTickets) {
+      setLocalTickets(contextTickets);
+    }
+  }, [contextTickets]);
 
-    updateTicket(updatedTicket);
+  const location = useLocation();
+  useEffect(() => {
+    setShowAddModal(false);
+    setShowEditModal(false);
+    setShowDeleteModal(false);
+    setShowDetailsModal(false);
+    setSelectedTicket(null);
+  }, [location.pathname]);
 
-    if (newStatus === 'Completed') {
-      const workstation = workstations.find(w => w.id === ticket.workstation_id); // Змінено пошук АРМ за ID
-      // const assignedPerformer = users.find(u => u.name === ticket.assigned_performer); // Змінено
-      const assignedPerformer = ticket.assigned_performer_id ? users.find(u => u.id === ticket.assigned_performer_id) : null;
-
-      if (!workstation) {
-        console.error('Workstation not found for repair');
-        return;
+  // Автопідтягування відповідального користувача при виборі АРМ
+  const handleWorkstationChange = (workstationId) => {
+    setFormData(prev => ({ ...prev, workstation_id: workstationId }));
+    
+    if (workstationId) {
+      const workstation = workstations.find(w => w.id === parseInt(workstationId));
+      if (workstation && workstation.responsible_id) {
+        setFormData(prev => ({ ...prev, user_id: workstation.responsible_id.toString() }));
       }
-
-      const repair = {
-        workstation_id: workstation.id,
-        description: ticket.description,
-        status: 'In Progress',
-        assigned_performer_id: assignedPerformer ? assignedPerformer.id : null,
-        start_date: new Date().toISOString().split('T')[0],
-      };
-      addRepair(repair);
     }
   };
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'In Progress':
-        return 'bg-yellow-500/20 text-yellow-400';
-      case 'Completed':
-        return 'bg-green-500/20 text-green-400';
-      case 'Pending':
-        return 'bg-red-500/20 text-red-400';
-      default:
-        return 'bg-gray-500/20 text-gray-400';
+  const handleAdd = async (e) => {
+    e.preventDefault();
+    
+    if (!formData.workstation_id || !formData.description || !formData.user_id) {
+      alert('Будь ласка, заповніть обов\'язкові поля');
+      return;
     }
+    
+    try {
+      const payload = {
+        ...formData,
+        workstation_id: parseInt(formData.workstation_id, 10),
+        user_id: parseInt(formData.user_id, 10),
+        assigned_to: formData.assigned_to ? parseInt(formData.assigned_to, 10) : null,
+      };
+      await addTicket(payload);
+      setShowAddModal(false);
+      setActiveTab('main');
+      setFormData(initialFormData);
+    } catch (err) {
+      console.error("Failed to add ticket:", err);
+      alert(`Помилка додавання заявки: ${err.response?.data?.error || err.message}`);
+    }
+  };
+
+  const handleEdit = async (e) => {
+    e.preventDefault();
+    
+    if (!formData.workstation_id || !formData.description || !formData.user_id) {
+      alert('Будь ласка, заповніть обов\'язкові поля');
+      return;
+    }
+    
+    try {
+      const payload = {
+        ...formData,
+        workstation_id: parseInt(formData.workstation_id, 10),
+        user_id: parseInt(formData.user_id, 10),
+        assigned_to: formData.assigned_to ? parseInt(formData.assigned_to, 10) : null,
+      };
+      await updateTicket(selectedTicket.id, payload);
+      setShowEditModal(false);
+      setActiveTab('main');
+      setSelectedTicket(null);
+      setFormData(initialFormData);
+    } catch (err) {
+      console.error("Failed to edit ticket:", err);
+      alert(`Помилка оновлення заявки: ${err.response?.data?.error || err.message}`);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!selectedTicket) return;
+    try {
+      await deleteTicket(selectedTicket.id);
+      setShowDeleteModal(false);
+      setSelectedTicket(null);
+    } catch (err) {
+      console.error("Failed to delete ticket:", err);
+      alert(`Помилка видалення заявки: ${err.response?.data?.error || err.message}`);
+    }
+  };
+
+  const openEditModal = (ticket) => {
+    setSelectedTicket(ticket);
+    setFormData({
+      workstation_id: ticket.workstation_id?.toString() || '',
+      description: ticket.description || '',
+      status: ticket.status || 'open',
+      priority: ticket.priority || 'medium',
+      assigned_to: ticket.assigned_to?.toString() || '',
+      user_id: ticket.user_id?.toString() || '',
+    });
+    setShowEditModal(true);
+    setActiveTab('main');
+  };
+
+  const openDetailsModal = (ticket) => {
+    setSelectedTicket(ticket);
+    setShowDetailsModal(true);
   };
 
   const getStatusIcon = (status) => {
     switch (status) {
-      case 'In Progress':
-        return <ClockIcon className="h-5 w-5 text-yellow-400" />;
-      case 'Completed':
-        return <CheckCircleIcon className="h-5 w-5 text-green-400" />;
-      case 'Pending':
-        return <XCircleIcon className="h-5 w-5 text-red-400" />;
+      case 'open':
+        return <ExclamationTriangleIcon className="h-4 w-4" />;
+      case 'in_progress':
+        return <ClockIcon className="h-4 w-4" />;
+      case 'resolved':
+        return <CheckCircleIcon className="h-4 w-4" />;
+      case 'closed':
+        return <XCircleIcon className="h-4 w-4" />;
+      default:
+        return <TicketIcon className="h-4 w-4" />;
+    }
+  };
+
+  const getPriorityIcon = (priority) => {
+    switch (priority) {
+      case 'critical':
+        return <ExclamationTriangleIcon className="h-4 w-4 text-red-400" />;
+      case 'high':
+        return <ExclamationTriangleIcon className="h-4 w-4 text-orange-400" />;
+      case 'medium':
+        return <ExclamationTriangleIcon className="h-4 w-4 text-yellow-400" />;
+      case 'low':
+        return <ExclamationTriangleIcon className="h-4 w-4 text-blue-400" />;
       default:
         return null;
     }
   };
 
-  const filteredTickets = (tickets || []).filter(ticket => {
-    const matchesSearch =
-      (ticket.workstation?.toLowerCase()?.includes(searchTerm.toLowerCase()) ||
-       ticket.description?.toLowerCase()?.includes(searchTerm.toLowerCase()) ||
-       ticket.created_by_user?.toLowerCase()?.includes(searchTerm.toLowerCase()) ||
-       ticket.assigned_performer?.toLowerCase()?.includes(searchTerm.toLowerCase()) ||
-       ticket.type?.toLowerCase()?.includes(searchTerm.toLowerCase()) ||
-       ticket.priority?.toLowerCase()?.includes(searchTerm.toLowerCase()));
+  const filteredTickets = (localTickets || []).filter(ticket => {
+    const workstation = workstations.find(w => w.id === ticket.workstation_id);
+    const reporter = users.find(u => u.id === ticket.user_id);
+    const assignee = users.find(u => u.id === ticket.assigned_to);
+
+    const matchesSearch = 
+      ticket.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      workstation?.inventory_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      reporter?.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      assignee?.full_name?.toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchesStatus = filterStatus === 'all' || ticket.status === filterStatus;
+    const matchesPriority = filterPriority === 'all' || ticket.priority === filterPriority;
+    const matchesWorkstation = filterWorkstation === 'all' || ticket.workstation_id === parseInt(filterWorkstation);
+    const matchesAssignee = filterAssignee === 'all' || ticket.assigned_to === parseInt(filterAssignee);
 
-    return matchesSearch && matchesStatus;
+    return matchesSearch && matchesStatus && matchesPriority && matchesWorkstation && matchesAssignee;
   });
 
+  if (loading) return (
+    <div className="p-6 flex items-center justify-center h-96">
+      <div className="text-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-400 mx-auto mb-4"></div>
+        <p className="text-gray-400">Завантаження заявок...</p>
+      </div>
+    </div>
+  );
+
+  if (error && !localTickets.length) return (
+    <div className="p-6 text-center">
+      <p className="text-red-400">Помилка завантаження заявок: {error}</p>
+    </div>
+  );
+
   return (
-    <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-semibold text-white">Заявки</h1>
+    <div className="p-6 space-y-6">
+      {/* Header */}
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-2xl font-semibold text-white">Заявки</h1>
+          <p className="text-gray-400 mt-1">Управління заявками та технічною підтримкою</p>
+        </div>
         <button
-          onClick={() => setShowAddModal(true)}
+          onClick={() => {
+            setFormData(initialFormData);
+            setShowAddModal(true);
+            setActiveTab('main');
+          }}
           className="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors"
         >
           <PlusIcon className="h-5 w-5" />
-          Додати заявку
+          Створити заявку
         </button>
       </div>
 
-      <div className="bg-dark-card rounded-lg shadow-card overflow-hidden">
-        <div className="p-4 border-b border-dark-border">
-          <div className="flex flex-wrap items-center gap-4">
-            <div className="relative flex-1 min-w-[200px]">
-              <input
-                type="text"
-                placeholder="Пошук..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full bg-dark-bg border border-dark-border rounded-lg pl-10 pr-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
-              />
-              <MagnifyingGlassIcon className="h-5 w-5 text-dark-textSecondary absolute left-3 top-1/2 transform -translate-y-1/2" />
-            </div>
-            <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-              className="bg-dark-bg border border-dark-border rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
-            >
-              <option value="all">Всі статуси</option>
-              <option value="Pending">В очікуванні</option>
-              <option value="In Progress">В процесі</option>
-              <option value="Completed">Завершено</option>
-            </select>
+      {/* Компактні фільтри */}
+      <div className="bg-dark-card rounded-lg shadow-card p-4">
+        <div className="flex flex-wrap items-center gap-4">
+          {/* Пошук */}
+          <div className="relative flex-1 min-w-[250px]">
+            <input
+              type="text"
+              placeholder="Пошук за описом, АРМ, користувачем..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full bg-dark-bg border border-dark-border rounded-lg pl-10 pr-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+            />
+            <MagnifyingGlassIcon className="h-5 w-5 text-dark-textSecondary absolute left-3 top-1/2 transform -translate-y-1/2" />
           </div>
-        </div>
+          
+          {/* Фільтри */}
+          <select
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value)}
+            className="bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+          >
+            <option value="all">Всі статуси</option>
+            {statusLevels.map(status => (
+              <option key={status.id} value={status.value}>{status.name}</option>
+            ))}
+          </select>
 
+          <select
+            value={filterPriority}
+            onChange={(e) => setFilterPriority(e.target.value)}
+            className="bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+          >
+            <option value="all">Всі пріоритети</option>
+            {priorityLevels.map(priority => (
+              <option key={priority.id} value={priority.value}>{priority.name}</option>
+            ))}
+          </select>
+
+          <select
+            value={filterAssignee}
+            onChange={(e) => setFilterAssignee(e.target.value)}
+            className="bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+          >
+            <option value="all">Всі призначені</option>
+            {users.map(user => (
+              <option key={user.id} value={user.id}>{user.full_name}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      {/* Таблиця */}
+      <div className="bg-dark-card rounded-lg shadow-card overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="min-w-full">
-            <thead>
-              <tr className="border-b border-dark-border">
-                <th className="text-left py-3 px-4 text-dark-textSecondary">ID</th>
-                <th className="text-left py-3 px-4 text-dark-textSecondary">АРМ</th>
-                <th className="text-left py-3 px-4 text-dark-textSecondary">Тип</th>
-                <th className="text-left py-3 px-4 text-dark-textSecondary">Проблема</th>
-                <th className="text-left py-3 px-4 text-dark-textSecondary">Статус</th>
-                <th className="text-left py-3 px-4 text-dark-textSecondary">Пріоритет</th>
-                <th className="text-left py-3 px-4 text-dark-textSecondary">Користувач</th>
-                <th className="text-left py-3 px-4 text-dark-textSecondary">Виконавець</th>
-                <th className="text-left py-3 px-4 text-dark-textSecondary">Дата створення</th>
-                <th className="text-left py-3 px-4 text-dark-textSecondary">Дії</th>
+          <table className="w-full">
+            <thead className="bg-dark-hover">
+              <tr className="text-left text-dark-textSecondary text-sm">
+                <th className="px-6 py-4 font-semibold">ID</th>
+                <th className="px-6 py-4 font-semibold">Назва</th>
+                <th className="px-6 py-4 font-semibold">Тип</th>
+                <th className="px-6 py-4 font-semibold">Пріоритет</th>
+                <th className="px-6 py-4 font-semibold">Статус</th>
+                <th className="px-6 py-4 font-semibold">Користувач</th>
+                <th className="px-6 py-4 font-semibold">Відділ</th>
+                <th className="px-6 py-4 font-semibold">Призначено</th>
+                <th className="px-6 py-4 font-semibold">Дата створення</th>
+                <th className="px-6 py-4 font-semibold text-center">Дії</th>
               </tr>
             </thead>
-            <tbody>
-              {filteredTickets.map((ticket) => (
-                <tr key={ticket.id} className="border-b border-dark-border hover:bg-dark-bg">
-                  <td className="py-3 px-4 text-white">{ticket.id}</td>
-                  <td className="py-3 px-4 text-white">{ticket.workstation}</td>
-                  <td className="py-3 px-4 text-white">{ticket.type}</td>
-                  <td className="py-3 px-4 text-white">{ticket.description}</td>
-                  <td className="py-3 px-4">
-                    <div className="flex items-center space-x-2">
-                      {getStatusIcon(ticket.status)}
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        getStatusColor(ticket.status)
-                      }`}>
-                        {ticket.status === 'Pending' && 'В очікуванні'}
-                        {ticket.status === 'In Progress' && 'В процесі'}
-                        {ticket.status === 'Completed' && 'Завершено'}
-                        {!['Pending', 'In Progress', 'Completed'].includes(ticket.status) && ticket.status}
-                      </span>
-                    </div>
-                  </td>
-                  <td className="py-3 px-4 text-white">{ticket.priority}</td>
-                  <td className="py-3 px-4 text-white">{ticket.created_by_user}</td>
-                  <td className="py-3 px-4 text-white">{ticket.assigned_performer || 'Не призначено'}</td>
-                  <td className="py-3 px-4 text-white">{new Date(ticket.created_at).toLocaleDateString()}</td>
-                  <td className="py-3 px-4">
-                    <select
-                      value={ticket.status}
-                      onChange={(e) => handleStatusChange(ticket, e.target.value)}
-                      className="bg-dark-bg border border-dark-border rounded-lg px-2 py-1 text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
-                    >
-                      <option value="Pending">В очікуванні</option>
-                      <option value="In Progress">В процесі</option>
-                      <option value="Completed">Завершено</option>
-                    </select>
+            <tbody className="divide-y divide-dark-border">
+              {filteredTickets.length > 0 ? filteredTickets.map(ticket => {
+                const workstation = workstations.find(w => w.id === ticket.workstation_id);
+                const reporter = users.find(u => u.id === ticket.user_id);
+                const assignee = users.find(u => u.id === ticket.assigned_to);
+                const department = departments.find(d => d.id === workstation?.department_id);
+                const statusObj = statusLevels.find(s => s.value === ticket.status);
+                const priorityObj = priorityLevels.find(p => p.value === ticket.priority);
+                
+                return (
+                  <tr key={ticket.id} className="hover:bg-dark-hover transition-colors">
+                    <td className="px-6 py-4 text-white font-medium">TK-{String(ticket.id).padStart(3, '0')}</td>
+                    <td className="px-6 py-4 text-gray-300 max-w-[300px] truncate">{ticket.description}</td>
+                    <td className="px-6 py-4 text-gray-300">Несправність</td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-2">
+                        {getPriorityIcon(ticket.priority)}
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${priorityObj?.color || 'bg-gray-500 text-gray-100'}`}>
+                          {priorityObj?.name || ticket.priority}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-2">
+                        {getStatusIcon(ticket.status)}
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusObj?.color || 'bg-gray-500 text-gray-100'}`}>
+                          {statusObj?.name || ticket.status}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-gray-300">{reporter?.full_name || '-'}</td>
+                    <td className="px-6 py-4 text-gray-300">{department?.name || '-'}</td>
+                    <td className="px-6 py-4 text-gray-300">{assignee?.full_name || 'Не призначено'}</td>
+                    <td className="px-6 py-4 text-gray-300">{new Date(ticket.created_at).toLocaleDateString('uk-UA')}</td>
+                    <td className="px-6 py-4 text-center">
+                      <button
+                        onClick={() => openDetailsModal(ticket)}
+                        className="text-gray-400 hover:text-white p-1 rounded transition-colors"
+                        title="Деталі"
+                      >
+                        <EllipsisVerticalIcon className="h-5 w-5" />
+                      </button>
+                    </td>
+                  </tr>
+                );
+              }) : (
+                <tr>
+                  <td colSpan="10" className="text-center py-12 text-dark-textSecondary">
+                    <TicketIcon className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p>Немає заявок, що відповідають фільтрам</p>
                   </td>
                 </tr>
-              ))}
+              )}
             </tbody>
           </table>
         </div>
       </div>
 
-      {showAddModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-dark-card p-6 rounded-lg w-[500px]">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-semibold text-white">Додати заявку</h2>
-              <button
-                onClick={() => setShowAddModal(false)}
-                className="text-dark-textSecondary hover:text-white"
-              >
-                ✕
+      {/* Модальне вікно додавання/редагування заявки */}
+      {(showAddModal || showEditModal) && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
+          <div className="bg-dark-card rounded-lg shadow-xl p-6 w-full max-w-3xl max-h-full overflow-y-auto">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold text-white">{showAddModal ? 'Створити заявку' : 'Редагувати заявку'}</h2>
+              <button onClick={() => {
+                showAddModal ? setShowAddModal(false) : setShowEditModal(false);
+                setActiveTab('main');
+                setSelectedTicket(null);
+                setFormData(initialFormData);
+              }} className="text-dark-textSecondary hover:text-white">
+                <XMarkIcon className="h-6 w-6" />
               </button>
             </div>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-dark-textSecondary mb-1">АРМ</label>
-                <select
-                  value={newTicket.workstationId}
-                  onChange={(e) => setNewTicket({ ...newTicket, workstationId: e.target.value })}
-                  className="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
-                >
-                  <option value="">Виберіть АРМ</option>
-                  {workstations.map((ws) => (
-                    <option key={ws.id} value={ws.id}>
-                      {ws.name} - {ws.department}
-                    </option>
-                  ))}
-                </select>
+            
+            <form onSubmit={showAddModal ? handleAdd : handleEdit}>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                <div>
+                  <label className="block text-sm font-medium text-dark-textSecondary mb-1">
+                    АРМ <span className="text-red-500">*</span>
+                  </label>
+                  <select 
+                    value={formData.workstation_id} 
+                    onChange={(e) => handleWorkstationChange(e.target.value)} 
+                    className="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-white focus:ring-primary-500 focus:border-primary-500" 
+                    required
+                  >
+                    <option value="">Виберіть АРМ</option>
+                    {workstations.map(ws => (
+                      <option key={ws.id} value={ws.id}>
+                        {ws.inventory_number} - {departments.find(d => d.id === ws.department_id)?.name || 'Без підрозділу'}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-dark-textSecondary mb-1">
+                    Користувач (хто звернувся) <span className="text-red-500">*</span>
+                  </label>
+                  <select 
+                    value={formData.user_id} 
+                    onChange={(e) => setFormData({...formData, user_id: e.target.value})} 
+                    className="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-white focus:ring-primary-500 focus:border-primary-500" 
+                    required
+                  >
+                    <option value="">Виберіть користувача</option>
+                    {users.map(user => (
+                      <option key={user.id} value={user.id}>
+                        {user.full_name} - {departments.find(d => d.id === user.department_id)?.name || 'Без підрозділу'}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-gray-400 mt-1">
+                    Автоматично підтягується відповідальний за обраний АРМ
+                  </p>
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-dark-textSecondary mb-1">
+                    Опис проблеми <span className="text-red-500">*</span>
+                  </label>
+                  <textarea 
+                    value={formData.description} 
+                    onChange={(e) => setFormData({...formData, description: e.target.value})} 
+                    className="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-white focus:ring-primary-500 focus:border-primary-500" 
+                    rows="4"
+                    placeholder="Детально опишіть проблему..."
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-dark-textSecondary mb-1">Пріоритет</label>
+                  <select 
+                    value={formData.priority} 
+                    onChange={(e) => setFormData({...formData, priority: e.target.value})} 
+                    className="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-white focus:ring-primary-500 focus:border-primary-500"
+                  >
+                    {priorityLevels.map(priority => (
+                      <option key={priority.id} value={priority.value}>{priority.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-dark-textSecondary mb-1">Статус</label>
+                  <select 
+                    value={formData.status} 
+                    onChange={(e) => setFormData({...formData, status: e.target.value})} 
+                    className="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-white focus:ring-primary-500 focus:border-primary-500"
+                  >
+                    {statusLevels.map(status => (
+                      <option key={status.id} value={status.value}>{status.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-dark-textSecondary mb-1">Призначити виконавця</label>
+                  <select 
+                    value={formData.assigned_to} 
+                    onChange={(e) => setFormData({...formData, assigned_to: e.target.value})} 
+                    className="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-white focus:ring-primary-500 focus:border-primary-500"
+                  >
+                    <option value="">Не призначено</option>
+                    {users.filter(u => u.role === 'admin').map(user => (
+                      <option key={user.id} value={user.id}>
+                        {user.full_name} - {departments.find(d => d.id === user.department_id)?.name || 'Без підрозділу'}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
-              <div>
-                <label className="block text-dark-textSecondary mb-1">Тип заявки</label>
-                <select
-                  value={newTicket.type}
-                  onChange={(e) => setNewTicket({ ...newTicket, type: e.target.value })}
-                  className="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
-                >
-                  <option value="">Виберіть тип</option>
-                  <option value="Hardware">Обладнання</option>
-                  <option value="Software">Програмне забезпечення</option>
-                  <option value="Network">Мережа</option>
-                  <option value="Other">Інше</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-dark-textSecondary mb-1">Опис проблеми</label>
-                <textarea
-                  value={newTicket.description}
-                  onChange={(e) => setNewTicket({ ...newTicket, description: e.target.value })}
-                  className="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
-                  placeholder="Опишіть проблему"
-                  rows="3"
-                />
-              </div>
-              <div>
-                <label className="block text-dark-textSecondary mb-1">Пріоритет</label>
-                <select
-                  value={newTicket.priority}
-                  onChange={(e) => setNewTicket({ ...newTicket, priority: e.target.value })}
-                  className="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
-                >
-                  <option value="High">Високий</option>
-                  <option value="Medium">Середній</option>
-                  <option value="Low">Низький</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-dark-textSecondary mb-1">Користувач (Хто створив)</label>
-                <select
-                  value={newTicket.createdByUserId}
-                  onChange={(e) => setNewTicket({ ...newTicket, createdByUserId: e.target.value })}
-                  className="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
-                >
-                  <option value="">Виберіть користувача</option>
-                  {users.map((user) => (
-                    <option key={user.id} value={user.id}>
-                      {user.name} ({user.login})
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-dark-textSecondary mb-1">Призначений виконавець</label>
-                <select
-                  value={newTicket.assignedPerformerId}
-                  onChange={(e) => setNewTicket({ ...newTicket, assignedPerformerId: e.target.value })}
-                  className="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
-                >
-                  <option value="">Не призначено</option>
-                  {users.map((user) => (
-                    <option key={user.id} value={user.id}>
-                      {user.name} ({user.login})
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="flex justify-end space-x-2">
-                <button
-                  onClick={() => setShowAddModal(false)}
-                  className="px-4 py-2 text-dark-textSecondary hover:text-white"
+
+              <div className="flex justify-end space-x-3">
+                <button 
+                  type="button" 
+                  onClick={() => { 
+                    showAddModal ? setShowAddModal(false) : setShowEditModal(false); 
+                    setActiveTab('main'); 
+                    setSelectedTicket(null); 
+                    setFormData(initialFormData); 
+                  }} 
+                  className="px-4 py-2 rounded-lg bg-dark-bg text-dark-textSecondary hover:bg-dark-hover transition-colors"
                 >
                   Скасувати
                 </button>
+                <button 
+                  type="submit" 
+                  className="px-4 py-2 rounded-lg bg-primary-600 text-white hover:bg-primary-700 transition-colors"
+                >
+                  {showAddModal ? 'Створити' : 'Зберегти'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Модальне вікно підтвердження видалення */}
+      {showDeleteModal && selectedTicket && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
+          <div className="bg-dark-card rounded-lg p-6 w-full max-w-md">
+            <h3 className="text-xl font-semibold text-white mb-4">Підтвердити видалення</h3>
+            <p className="text-dark-textSecondary mb-6">
+              Ви впевнені, що хочете видалити заявку "TK-{String(selectedTicket.id).padStart(3, '0')}"? 
+              Цю дію неможливо буде скасувати.
+            </p>
+            <div className="flex justify-end space-x-3">
+              <button 
+                onClick={() => setShowDeleteModal(false)} 
+                className="px-4 py-2 rounded-lg bg-dark-bg text-dark-textSecondary hover:bg-dark-hover transition-colors"
+              >
+                Скасувати
+              </button>
+              <button 
+                onClick={handleDelete} 
+                className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors"
+              >
+                Видалити
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Модальне вікно деталей заявки */}
+      {showDetailsModal && selectedTicket && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
+          <div className="bg-dark-card rounded-lg shadow-xl p-6 w-full max-w-4xl max-h-full overflow-y-auto">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold text-white">
+                Деталі заявки: TK-{String(selectedTicket.id).padStart(3, '0')}
+              </h2>
+              <button 
+                onClick={() => setShowDetailsModal(false)} 
+                className="text-dark-textSecondary hover:text-white"
+              >
+                <XMarkIcon className="h-6 w-6" />
+              </button>
+            </div>
+            
+            {/* Основна інформація */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-white border-b border-dark-border pb-2">
+                  Загальна інформація
+                </h3>
+                <div className="space-y-3">
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Номер заявки:</span>
+                    <span className="text-white font-medium">TK-{String(selectedTicket.id).padStart(3, '0')}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">АРМ:</span>
+                    <span className="text-white">{workstations.find(w => w.id === selectedTicket.workstation_id)?.inventory_number || 'N/A'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Користувач:</span>
+                    <span className="text-white">{users.find(u => u.id === selectedTicket.user_id)?.full_name || 'N/A'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Відділ:</span>
+                    <span className="text-white">
+                      {(() => {
+                        const workstation = workstations.find(w => w.id === selectedTicket.workstation_id);
+                        const department = departments.find(d => d.id === workstation?.department_id);
+                        return department?.name || 'N/A';
+                      })()}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Призначено:</span>
+                    <span className="text-white">{users.find(u => u.id === selectedTicket.assigned_to)?.full_name || 'Не призначено'}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-white border-b border-dark-border pb-2">
+                  Статус та пріоритет
+                </h3>
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-400">Статус:</span>
+                    <div className="flex items-center gap-2">
+                      {getStatusIcon(selectedTicket.status)}
+                      <span className={`px-2 py-1 rounded text-xs ${statusLevels.find(s => s.value === selectedTicket.status)?.color || 'bg-gray-500 text-gray-100'}`}>
+                        {statusLevels.find(s => s.value === selectedTicket.status)?.name || selectedTicket.status}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-400">Пріоритет:</span>
+                    <div className="flex items-center gap-2">
+                      {getPriorityIcon(selectedTicket.priority)}
+                      <span className={`px-2 py-1 rounded text-xs ${priorityLevels.find(p => p.value === selectedTicket.priority)?.color || 'bg-gray-500 text-gray-100'}`}>
+                        {priorityLevels.find(p => p.value === selectedTicket.priority)?.name || selectedTicket.priority}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Дата створення:</span>
+                    <span className="text-white">{new Date(selectedTicket.created_at).toLocaleDateString('uk-UA')}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Останнє оновлення:</span>
+                    <span className="text-white">{new Date(selectedTicket.updated_at).toLocaleDateString('uk-UA')}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Опис проблеми */}
+            <div className="mb-6">
+              <h3 className="text-lg font-semibold text-white border-b border-dark-border pb-2 mb-4">
+                Опис проблеми
+              </h3>
+              <div className="bg-dark-bg rounded-lg p-4">
+                <p className="text-white whitespace-pre-wrap">{selectedTicket.description}</p>
+              </div>
+            </div>
+
+            {/* Технічна інформація АРМ */}
+            {(() => {
+              const workstation = workstations.find(w => w.id === selectedTicket.workstation_id);
+              if (!workstation) return null;
+              
+              return (
+                <div className="mb-6">
+                  <h3 className="text-lg font-semibold text-white border-b border-dark-border pb-2 mb-4">
+                    Технічна інформація АРМ
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div className="bg-dark-bg rounded-lg p-4">
+                      <div className="text-gray-400 text-sm">IP адреса</div>
+                      <div className="text-white font-medium font-mono">{workstation.ip_address || 'Не вказано'}</div>
+                    </div>
+                    <div className="bg-dark-bg rounded-lg p-4">
+                      <div className="text-gray-400 text-sm">MAC адреса</div>
+                      <div className="text-white font-medium font-mono">{workstation.mac_address || 'Не вказано'}</div>
+                    </div>
+                    <div className="bg-dark-bg rounded-lg p-4">
+                      <div className="text-gray-400 text-sm">Операційна система</div>
+                      <div className="text-white font-medium">{workstation.os_name || 'Не вказано'}</div>
+                    </div>
+                    <div className="bg-dark-bg rounded-lg p-4">
+                      <div className="text-gray-400 text-sm">Процесор</div>
+                      <div className="text-white font-medium">{workstation.processor || 'Не вказано'}</div>
+                    </div>
+                    <div className="bg-dark-bg rounded-lg p-4">
+                      <div className="text-gray-400 text-sm">ОЗУ</div>
+                      <div className="text-white font-medium">{workstation.ram || 'Не вказано'}</div>
+                    </div>
+                    <div className="bg-dark-bg rounded-lg p-4">
+                      <div className="text-gray-400 text-sm">Накопичувач</div>
+                      <div className="text-white font-medium">{workstation.storage || 'Не вказано'}</div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Дії */}
+            <div className="flex justify-between items-center">
+              <div className="flex space-x-3">
                 <button
-                  onClick={handleAddTicket}
+                  onClick={() => openEditModal(selectedTicket)}
                   className="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg transition-colors"
                 >
-                  Додати
+                  Редагувати
+                </button>
+                <button
+                  onClick={() => {
+                    setShowDetailsModal(false);
+                    setShowDeleteModal(true);
+                  }}
+                  className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition-colors"
+                >
+                  Видалити
+                </button>
+              </div>
+              <div className="flex space-x-3">
+                <button className="bg-dark-bg hover:bg-dark-hover text-white px-4 py-2 rounded-lg transition-colors">
+                  АРМ
+                </button>
+                <button className="bg-dark-bg hover:bg-dark-hover text-white px-4 py-2 rounded-lg transition-colors">
+                  Ремонти
+                </button>
+                <button className="bg-dark-bg hover:bg-dark-hover text-white px-4 py-2 rounded-lg transition-colors">
+                  Історія
                 </button>
               </div>
             </div>

@@ -615,8 +615,8 @@ const Tickets = () => {
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-400">Призначено:</span>
-                    <span className="text-white">{users.find(u => u.id === selectedTicket.assigned_to)?.full_name || 'Не призначено'}</span>
+                    <span className="text-gray-400">IP адреса АРМ:</span>
+                    <span className="text-white font-mono">{workstations.find(w => w.id === selectedTicket.workstation_id)?.ip_address || 'N/A'}</span>
                   </div>
                 </div>
               </div>

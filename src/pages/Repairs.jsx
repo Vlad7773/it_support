@@ -649,14 +649,32 @@ const Repairs = () => {
                 </button>
               </div>
               <div className="flex space-x-3">
-                <button className="bg-dark-bg hover:bg-dark-hover text-white px-4 py-2 rounded-lg transition-colors">
+                <button 
+                  onClick={() => {
+                    // Перенаправлення на сторінку АРМ з фільтром по поточному АРМ
+                    window.location.href = `/workstations`;
+                  }}
+                  className="bg-dark-bg hover:bg-dark-hover text-white px-4 py-2 rounded-lg transition-colors"
+                >
                   АРМ
                 </button>
-                <button className="bg-dark-bg hover:bg-dark-hover text-white px-4 py-2 rounded-lg transition-colors">
+                <button 
+                  onClick={() => {
+                    // Перенаправлення на сторінку заявок з фільтром по поточному АРМ
+                    window.location.href = `/tickets`;
+                  }}
+                  className="bg-dark-bg hover:bg-dark-hover text-white px-4 py-2 rounded-lg transition-colors"
+                >
                   Заявки
                 </button>
-                <button className="bg-dark-bg hover:bg-dark-hover text-white px-4 py-2 rounded-lg transition-colors">
-                  Історія
+                <button 
+                  onClick={() => {
+                    // Перенаправлення на сторінку ПЗ з фільтром по поточному АРМ
+                    window.location.href = `/software`;
+                  }}
+                  className="bg-dark-bg hover:bg-dark-hover text-white px-4 py-2 rounded-lg transition-colors"
+                >
+                  ПЗ
                 </button>
               </div>
             </div>

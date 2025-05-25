@@ -329,12 +329,12 @@ const Workstations = () => {
   );
 
   return (
-    <div className="min-h-screen p-6 space-y-6">
-      {/* Header - кнопка в одну лінію */}
+    <div className="p-6 space-y-6">
+      {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-white">Робочі станції</h1>
-          <p className="text-[#8892b0] mt-2">Управління АРМ та технічними характеристиками</p>
+          <h1 className="text-2xl font-semibold text-white">Робочі станції</h1>
+          <p className="text-gray-400 mt-1">Управління АРМ та технічними характеристиками</p>
         </div>
         <button
           onClick={() => {
@@ -342,33 +342,33 @@ const Workstations = () => {
             setShowAddModal(true);
             setActiveTab('main');
           }}
-          className="btn-gradient flex items-center gap-2"
+          className="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors"
         >
           <PlusIcon className="h-5 w-5" />
-          <span>Додати АРМ</span>
+          Додати АРМ
         </button>
       </div>
 
-      {/* Компактні фільтри в одну лінію */}
-      <div className="dark-card rounded-xl p-4">
-        <div className="flex items-center gap-3">
+      {/* Компактні фільтри */}
+      <div className="bg-dark-card rounded-lg shadow-card p-4">
+        <div className="flex flex-wrap items-center gap-4">
           {/* Пошук */}
           <div className="relative flex-1 min-w-[250px]">
             <input
               type="text"
-              placeholder="Пошук..."
+              placeholder="Пошук за інв. номером, IP адресою, відділом..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="modern-input pl-10 py-2"
+              className="w-full bg-dark-bg border border-dark-border rounded-lg pl-10 pr-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
             />
-            <MagnifyingGlassIcon className="h-4 w-4 text-[#8892b0] absolute left-3 top-1/2 transform -translate-y-1/2" />
+            <MagnifyingGlassIcon className="h-5 w-5 text-dark-textSecondary absolute left-3 top-1/2 transform -translate-y-1/2" />
           </div>
           
-          {/* Фільтри з кращими стилями */}
+          {/* Фільтри */}
           <select
             value={filterDepartment}
             onChange={(e) => setFilterDepartment(e.target.value)}
-            className="bg-[#16213e] border border-[#2a3f66] rounded-lg px-3 py-2 text-white text-sm min-w-[120px] focus:outline-none focus:ring-2 focus:ring-[#64ffda] focus:border-[#64ffda]"
+            className="bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
           >
             <option value="all">Всі підрозділи</option>
             {departments.map(dept => (
@@ -379,7 +379,7 @@ const Workstations = () => {
           <select
             value={filterGrif}
             onChange={(e) => setFilterGrif(e.target.value)}
-            className="bg-[#16213e] border border-[#2a3f66] rounded-lg px-3 py-2 text-white text-sm min-w-[100px] focus:outline-none focus:ring-2 focus:ring-[#64ffda] focus:border-[#64ffda]"
+            className="bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
           >
             <option value="all">Всі грифи</option>
             {grifLevels.map(grif => (
@@ -390,7 +390,7 @@ const Workstations = () => {
           <select
             value={filterResponsible}
             onChange={(e) => setFilterResponsible(e.target.value)}
-            className="bg-[#16213e] border border-[#2a3f66] rounded-lg px-3 py-2 text-white text-sm min-w-[140px] focus:outline-none focus:ring-2 focus:ring-[#64ffda] focus:border-[#64ffda]"
+            className="bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
           >
             <option value="all">Всі відповідальні</option>
             {users.map(user => (
@@ -400,50 +400,50 @@ const Workstations = () => {
         </div>
       </div>
 
-      {/* Таблиця без MAC адреси з кращим заголовком */}
-      <div className="dark-card rounded-xl overflow-hidden">
+      {/* Таблиця */}
+      <div className="bg-dark-card rounded-lg shadow-card overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="modern-table">
-            <thead className="bg-[#0e3460]">
-              <tr>
-                <th>Тип/Інв. номер</th>
-                <th>IP адреса</th>
-                <th>Гриф</th>
-                <th>Підрозділ</th>
-                <th>Відповідальний</th>
-                <th>Контакти</th>
-                <th>Дата реєстрації</th>
-                <th className="text-center">Дії</th>
+          <table className="w-full">
+            <thead className="bg-dark-hover">
+              <tr className="text-left text-dark-textSecondary text-sm">
+                <th className="px-6 py-4 font-semibold">Тип/Інв. номер</th>
+                <th className="px-6 py-4 font-semibold">IP адреса</th>
+                <th className="px-6 py-4 font-semibold">Гриф</th>
+                <th className="px-6 py-4 font-semibold">Підрозділ</th>
+                <th className="px-6 py-4 font-semibold">Відповідальний</th>
+                <th className="px-6 py-4 font-semibold">Контакти</th>
+                <th className="px-6 py-4 font-semibold">Дата реєстрації</th>
+                <th className="px-6 py-4 font-semibold text-center">Дії</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-dark-border">
               {filteredWorkstations.length > 0 ? filteredWorkstations.map(ws => {
                 const department = departments.find(d => d.id === ws.department_id);
                 const responsibleUser = users.find(u => u.id === ws.responsible_id);
                 const grifObj = grifLevels.find(g => g.value === ws.grif);
                 
                 return (
-                  <tr key={ws.id}>
-                    <td>
+                  <tr key={ws.id} className="hover:bg-dark-hover transition-colors">
+                    <td className="px-6 py-4">
                       <div className="flex items-center gap-2">
                         {getDeviceIcon(ws.type)}
-                        <span className="font-semibold">{ws.inventory_number}</span>
+                        <span className="text-white font-medium">{ws.inventory_number}</span>
                       </div>
                     </td>
-                    <td className="font-mono font-medium">{ws.ip_address || '-'}</td>
-                    <td>
-                      <span className={`status-badge ${grifObj?.color || 'bg-gray-500 bg-opacity-20 text-gray-300'}`}>
+                    <td className="px-6 py-4 text-gray-300 font-mono">{ws.ip_address || '-'}</td>
+                    <td className="px-6 py-4">
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${grifObj?.color || 'bg-gray-500 text-gray-100'}`}>
                         {grifObj?.name || ws.grif}
                       </span>
                     </td>
-                    <td>{department?.name || '-'}</td>
-                    <td>{responsibleUser?.full_name || '-'}</td>
-                    <td>{ws.contacts || '-'}</td>
-                    <td>{ws.registration_date || '-'}</td>
-                    <td className="text-center">
+                    <td className="px-6 py-4 text-gray-300">{department?.name || '-'}</td>
+                    <td className="px-6 py-4 text-gray-300">{responsibleUser?.full_name || '-'}</td>
+                    <td className="px-6 py-4 text-gray-300">{ws.contacts || '-'}</td>
+                    <td className="px-6 py-4 text-gray-300">{ws.registration_date || '-'}</td>
+                    <td className="px-6 py-4 text-center">
                       <button
                         onClick={() => openDetailsModal(ws)}
-                        className="text-[#8892b0] hover:text-[#64ffda] p-2 rounded-lg transition-all duration-200 hover:bg-[#0e3460]"
+                        className="text-gray-400 hover:text-white p-1 rounded transition-colors"
                         title="Деталі"
                       >
                         <Bars3Icon className="h-5 w-5" />
@@ -453,9 +453,9 @@ const Workstations = () => {
                 );
               }) : (
                 <tr>
-                  <td colSpan="8" className="text-center py-12">
-                    <ComputerDesktopIcon className="h-16 w-16 mx-auto mb-4 text-[#8892b0] opacity-50" />
-                    <p className="text-[#8892b0]">Немає АРМ, що відповідають фільтрам</p>
+                  <td colSpan="8" className="text-center py-12 text-dark-textSecondary">
+                    <ComputerDesktopIcon className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p>Немає АРМ, що відповідають фільтрам</p>
                   </td>
                 </tr>
               )}

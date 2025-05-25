@@ -52,6 +52,8 @@ CREATE TABLE IF NOT EXISTS tickets (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER REFERENCES users(id),
     workstation_id INTEGER REFERENCES workstations(id),
+    title TEXT NOT NULL,
+    type TEXT NOT NULL CHECK(type IN ('printer_issue', 'mouse_issue', 'keyboard_issue', 'monitor_issue', 'system_startup', 'network_issue', 'software_issue', 'hardware_issue', 'other')) DEFAULT 'other',
     description TEXT NOT NULL,
     status TEXT NOT NULL CHECK(status IN ('open', 'in_progress', 'resolved', 'closed')) DEFAULT 'open',
     priority TEXT NOT NULL CHECK(priority IN ('low', 'medium', 'high', 'critical')) DEFAULT 'medium',
@@ -116,11 +118,11 @@ INSERT OR IGNORE INTO workstations (inventory_number, ip_address, mac_address, g
 ('АРМ-005', '192.168.1.105', '00:1A:2B:3C:4D:05', 'Особливої важливості', 'Ubuntu 22.04', 1, 6, '+380503456794', '', 'Intel Xeon E-2224', '64 ГБ DDR4 ECC', 'SSD 2 ТБ NVMe', 'Dual Dell 24"', '10 Gigabit Ethernet', 'Сервер', 'operational', '2024-01-05');
 
 -- Додаємо заявки
-INSERT OR IGNORE INTO tickets (user_id, workstation_id, description, status, priority, assigned_to) VALUES
-(2, 1, 'Monitor flickering issue', 'open', 'medium', 1),
-(3, 3, 'Software installation request', 'in_progress', 'low', 1),
-(2, 1, 'Keyboard not working', 'resolved', 'high', 1),
-(3, 4, 'Network connectivity issues', 'open', 'critical', 1);
+INSERT OR IGNORE INTO tickets (user_id, workstation_id, title, type, description, status, priority, assigned_to) VALUES
+(2, 1, 'Блимає монітор', 'monitor_issue', 'Монітор періодично блимає, особливо при запуску програм', 'open', 'medium', 1),
+(3, 3, 'Потрібно встановити ПЗ', 'software_issue', 'Необхідно встановити Microsoft Office та антивірус', 'in_progress', 'low', 1),
+(2, 1, 'Не працює клавіатура', 'keyboard_issue', 'Клавіатура повністю не реагує на натискання клавіш', 'resolved', 'high', 1),
+(3, 4, 'Проблеми з мережею', 'network_issue', 'Немає доступу до Інтернету та локальної мережі', 'open', 'critical', 1);
 
 -- Додаємо ремонти
 INSERT OR IGNORE INTO repairs (workstation_id, technician_id, description, repair_date, cost, status) VALUES

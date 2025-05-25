@@ -41,25 +41,38 @@ const Tickets = () => {
   const [activeTab, setActiveTab] = useState('main');
 
   const priorityLevels = [
-    { id: 1, value: 'low', name: 'Низький', color: 'bg-blue-500 text-blue-100' },
-    { id: 2, value: 'medium', name: 'Середній', color: 'bg-yellow-500 text-yellow-100' },
-    { id: 3, value: 'high', name: 'Високий', color: 'bg-orange-500 text-orange-100' },
-    { id: 4, value: 'critical', name: 'Критичний', color: 'bg-red-500 text-red-100' }
+    { id: 1, value: 'low', name: 'Низький' },
+    { id: 2, value: 'medium', name: 'Середній' },
+    { id: 3, value: 'high', name: 'Високий' },
+    { id: 4, value: 'critical', name: 'Критичний' }
+  ];
+
+  const ticketTypes = [
+    { id: 1, value: 'printer_issue', name: 'Не працює принтер' },
+    { id: 2, value: 'mouse_issue', name: 'Не працює мишка' },
+    { id: 3, value: 'keyboard_issue', name: 'Не працює клавіатура' },
+    { id: 4, value: 'monitor_issue', name: 'Проблеми з монітором' },
+    { id: 5, value: 'system_startup', name: 'Не запускається АРМ' },
+    { id: 6, value: 'network_issue', name: 'Проблеми з мережею' },
+    { id: 7, value: 'software_issue', name: 'Проблеми з ПЗ' },
+    { id: 8, value: 'hardware_issue', name: 'Несправність обладнання' },
+    { id: 9, value: 'other', name: 'Інше' }
   ];
 
   const statusLevels = [
-    { id: 1, value: 'open', name: 'Відкрита', color: 'bg-blue-500 text-blue-100' },
-    { id: 2, value: 'in_progress', name: 'В процесі', color: 'bg-yellow-500 text-yellow-100' },
-    { id: 3, value: 'resolved', name: 'Вирішена', color: 'bg-green-500 text-green-100' },
-    { id: 4, value: 'closed', name: 'Закрита', color: 'bg-gray-500 text-gray-100' }
+    { id: 1, value: 'open', name: 'Відкрита' },
+    { id: 2, value: 'in_progress', name: 'В процесі' },
+    { id: 3, value: 'resolved', name: 'Вирішена' },
+    { id: 4, value: 'closed', name: 'Закрита' }
   ];
 
   const initialFormData = {
     workstation_id: '',
+    title: '',
+    type: 'other',
     description: '',
     status: 'open',
     priority: 'medium',
-    assigned_to: '',
     user_id: '', // Хто створив заявку
   };
 
@@ -96,7 +109,7 @@ const Tickets = () => {
   const handleAdd = async (e) => {
     e.preventDefault();
     
-    if (!formData.workstation_id || !formData.description || !formData.user_id) {
+    if (!formData.workstation_id || !formData.title || !formData.description || !formData.user_id) {
       alert('Будь ласка, заповніть обов\'язкові поля');
       return;
     }
@@ -106,7 +119,6 @@ const Tickets = () => {
         ...formData,
         workstation_id: parseInt(formData.workstation_id, 10),
         user_id: parseInt(formData.user_id, 10),
-        assigned_to: formData.assigned_to ? parseInt(formData.assigned_to, 10) : null,
       };
       await addTicket(payload);
       setShowAddModal(false);
@@ -121,7 +133,7 @@ const Tickets = () => {
   const handleEdit = async (e) => {
     e.preventDefault();
     
-    if (!formData.workstation_id || !formData.description || !formData.user_id) {
+    if (!formData.workstation_id || !formData.title || !formData.description || !formData.user_id) {
       alert('Будь ласка, заповніть обов\'язкові поля');
       return;
     }
@@ -131,7 +143,6 @@ const Tickets = () => {
         ...formData,
         workstation_id: parseInt(formData.workstation_id, 10),
         user_id: parseInt(formData.user_id, 10),
-        assigned_to: formData.assigned_to ? parseInt(formData.assigned_to, 10) : null,
       };
       await updateTicket(selectedTicket.id, payload);
       setShowEditModal(false);
@@ -160,10 +171,11 @@ const Tickets = () => {
     setSelectedTicket(ticket);
     setFormData({
       workstation_id: ticket.workstation_id?.toString() || '',
+      title: ticket.title || '',
+      type: ticket.type || 'other',
       description: ticket.description || '',
       status: ticket.status || 'open',
       priority: ticket.priority || 'medium',
-      assigned_to: ticket.assigned_to?.toString() || '',
       user_id: ticket.user_id?.toString() || '',
     });
     setShowEditModal(true);
@@ -178,15 +190,15 @@ const Tickets = () => {
   const getStatusIcon = (status) => {
     switch (status) {
       case 'open':
-        return <ExclamationTriangleIcon className="h-4 w-4" />;
+        return <ExclamationTriangleIcon className="h-4 w-4 text-blue-400" />;
       case 'in_progress':
-        return <ClockIcon className="h-4 w-4" />;
+        return <ClockIcon className="h-4 w-4 text-yellow-400" />;
       case 'resolved':
-        return <CheckCircleIcon className="h-4 w-4" />;
+        return <CheckCircleIcon className="h-4 w-4 text-green-400" />;
       case 'closed':
-        return <XCircleIcon className="h-4 w-4" />;
+        return <XCircleIcon className="h-4 w-4 text-gray-400" />;
       default:
-        return <TicketIcon className="h-4 w-4" />;
+        return <TicketIcon className="h-4 w-4 text-gray-400" />;
     }
   };
 
@@ -205,24 +217,24 @@ const Tickets = () => {
     }
   };
 
-  const filteredTickets = (localTickets || []).filter(ticket => {
-    const workstation = workstations.find(w => w.id === ticket.workstation_id);
-    const reporter = users.find(u => u.id === ticket.user_id);
-    const assignee = users.find(u => u.id === ticket.assigned_to);
+  const filteredTickets = (localTickets || [])
+    .filter(ticket => {
+      const workstation = workstations.find(w => w.id === ticket.workstation_id);
+      const reporter = users.find(u => u.id === ticket.user_id);
 
-    const matchesSearch = 
-      ticket.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      workstation?.inventory_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      reporter?.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      assignee?.full_name?.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesSearch = 
+        ticket.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        ticket.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        workstation?.inventory_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        reporter?.full_name?.toLowerCase().includes(searchTerm.toLowerCase());
 
-    const matchesStatus = filterStatus === 'all' || ticket.status === filterStatus;
-    const matchesPriority = filterPriority === 'all' || ticket.priority === filterPriority;
-    const matchesWorkstation = filterWorkstation === 'all' || ticket.workstation_id === parseInt(filterWorkstation);
-    const matchesAssignee = filterAssignee === 'all' || ticket.assigned_to === parseInt(filterAssignee);
+      const matchesStatus = filterStatus === 'all' || ticket.status === filterStatus;
+      const matchesPriority = filterPriority === 'all' || ticket.priority === filterPriority;
+      const matchesWorkstation = filterWorkstation === 'all' || ticket.workstation_id === parseInt(filterWorkstation);
 
-    return matchesSearch && matchesStatus && matchesPriority && matchesWorkstation && matchesAssignee;
-  });
+      return matchesSearch && matchesStatus && matchesPriority && matchesWorkstation;
+    })
+    .sort((a, b) => b.id - a.id); // Сортування за ID (найновіші спочатку)
 
   if (loading) return (
     <div className="p-6 flex items-center justify-center h-96">
@@ -298,16 +310,7 @@ const Tickets = () => {
             ))}
           </select>
 
-          <select
-            value={filterAssignee}
-            onChange={(e) => setFilterAssignee(e.target.value)}
-            className="bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
-          >
-            <option value="all">Всі призначені</option>
-            {users.map(user => (
-              <option key={user.id} value={user.id}>{user.full_name}</option>
-            ))}
-          </select>
+
         </div>
       </div>
 
@@ -324,7 +327,6 @@ const Tickets = () => {
                 <th className="px-6 py-4 font-semibold">Статус</th>
                 <th className="px-6 py-4 font-semibold">Користувач</th>
                 <th className="px-6 py-4 font-semibold">Відділ</th>
-                <th className="px-6 py-4 font-semibold">Призначено</th>
                 <th className="px-6 py-4 font-semibold">Дата створення</th>
                 <th className="px-6 py-4 font-semibold text-center">Дії</th>
               </tr>
@@ -333,20 +335,20 @@ const Tickets = () => {
               {filteredTickets.length > 0 ? filteredTickets.map(ticket => {
                 const workstation = workstations.find(w => w.id === ticket.workstation_id);
                 const reporter = users.find(u => u.id === ticket.user_id);
-                const assignee = users.find(u => u.id === ticket.assigned_to);
                 const department = departments.find(d => d.id === workstation?.department_id);
                 const statusObj = statusLevels.find(s => s.value === ticket.status);
                 const priorityObj = priorityLevels.find(p => p.value === ticket.priority);
+                const typeObj = ticketTypes.find(t => t.value === ticket.type);
                 
                 return (
                   <tr key={ticket.id} className="hover:bg-dark-hover transition-colors">
-                    <td className="px-6 py-4 text-white font-medium">TK-{String(ticket.id).padStart(3, '0')}</td>
-                    <td className="px-6 py-4 text-gray-300 max-w-[300px] truncate">{ticket.description}</td>
-                    <td className="px-6 py-4 text-gray-300">Несправність</td>
+                    <td className="px-6 py-4 text-white font-medium">{String(ticket.id).padStart(3, '0')}</td>
+                    <td className="px-6 py-4 text-gray-300 max-w-[300px] truncate">{ticket.title || ticket.description}</td>
+                    <td className="px-6 py-4 text-gray-300">{typeObj?.name || 'Інше'}</td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2">
                         {getPriorityIcon(ticket.priority)}
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${priorityObj?.color || 'bg-gray-500 text-gray-100'}`}>
+                        <span className="text-gray-300">
                           {priorityObj?.name || ticket.priority}
                         </span>
                       </div>
@@ -354,14 +356,13 @@ const Tickets = () => {
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2">
                         {getStatusIcon(ticket.status)}
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusObj?.color || 'bg-gray-500 text-gray-100'}`}>
+                        <span className="text-white">
                           {statusObj?.name || ticket.status}
                         </span>
                       </div>
                     </td>
                     <td className="px-6 py-4 text-gray-300">{reporter?.full_name || '-'}</td>
                     <td className="px-6 py-4 text-gray-300">{department?.name || '-'}</td>
-                    <td className="px-6 py-4 text-gray-300">{assignee?.full_name || 'Не призначено'}</td>
                     <td className="px-6 py-4 text-gray-300">{new Date(ticket.created_at).toLocaleDateString('uk-UA')}</td>
                     <td className="px-6 py-4 text-center">
                       <button
@@ -376,7 +377,7 @@ const Tickets = () => {
                 );
               }) : (
                 <tr>
-                  <td colSpan="10" className="text-center py-12 text-dark-textSecondary">
+                  <td colSpan="9" className="text-center py-12 text-dark-textSecondary">
                     <TicketIcon className="h-12 w-12 mx-auto mb-4 opacity-50" />
                     <p>Немає заявок, що відповідають фільтрам</p>
                   </td>
@@ -422,6 +423,12 @@ const Tickets = () => {
                       </option>
                     ))}
                   </select>
+                  {formData.workstation_id && (
+                    <div className="mt-2 text-sm text-gray-400">
+                      <div>Відповідальний: {users.find(u => u.id === workstations.find(w => w.id === parseInt(formData.workstation_id))?.responsible_id)?.full_name || 'Не вказано'}</div>
+                      <div>Відділ: {departments.find(d => d.id === workstations.find(w => w.id === parseInt(formData.workstation_id))?.department_id)?.name || 'Не вказано'}</div>
+                    </div>
+                  )}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-dark-textSecondary mb-1">
@@ -440,20 +447,45 @@ const Tickets = () => {
                       </option>
                     ))}
                   </select>
-                  <p className="text-xs text-gray-400 mt-1">
-                    Автоматично підтягується відповідальний за обраний АРМ
-                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-dark-textSecondary mb-1">
+                    Назва заявки <span className="text-red-500">*</span>
+                  </label>
+                  <input 
+                    type="text"
+                    value={formData.title} 
+                    onChange={(e) => setFormData({...formData, title: e.target.value})} 
+                    className="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-white focus:ring-primary-500 focus:border-primary-500" 
+                    placeholder="Коротка назва проблеми..."
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-dark-textSecondary mb-1">
+                    Тип проблеми <span className="text-red-500">*</span>
+                  </label>
+                  <select 
+                    value={formData.type} 
+                    onChange={(e) => setFormData({...formData, type: e.target.value})} 
+                    className="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-white focus:ring-primary-500 focus:border-primary-500"
+                    required
+                  >
+                    {ticketTypes.map(type => (
+                      <option key={type.id} value={type.value}>{type.name}</option>
+                    ))}
+                  </select>
                 </div>
                 <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-dark-textSecondary mb-1">
-                    Опис проблеми <span className="text-red-500">*</span>
+                    Детальний опис проблеми <span className="text-red-500">*</span>
                   </label>
                   <textarea 
                     value={formData.description} 
                     onChange={(e) => setFormData({...formData, description: e.target.value})} 
                     className="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-white focus:ring-primary-500 focus:border-primary-500" 
                     rows="4"
-                    placeholder="Детально опишіть проблему..."
+                    placeholder="Детально опишіть проблему, коли вона виникла, які дії призвели до неї..."
                     required
                   />
                 </div>
@@ -469,33 +501,20 @@ const Tickets = () => {
                     ))}
                   </select>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-dark-textSecondary mb-1">Статус</label>
-                  <select 
-                    value={formData.status} 
-                    onChange={(e) => setFormData({...formData, status: e.target.value})} 
-                    className="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-white focus:ring-primary-500 focus:border-primary-500"
-                  >
-                    {statusLevels.map(status => (
-                      <option key={status.id} value={status.value}>{status.name}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-dark-textSecondary mb-1">Призначити виконавця</label>
-                  <select 
-                    value={formData.assigned_to} 
-                    onChange={(e) => setFormData({...formData, assigned_to: e.target.value})} 
-                    className="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-white focus:ring-primary-500 focus:border-primary-500"
-                  >
-                    <option value="">Не призначено</option>
-                    {users.filter(u => u.role === 'admin').map(user => (
-                      <option key={user.id} value={user.id}>
-                        {user.full_name} - {departments.find(d => d.id === user.department_id)?.name || 'Без підрозділу'}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                {showEditModal && (
+                  <div>
+                    <label className="block text-sm font-medium text-dark-textSecondary mb-1">Статус</label>
+                    <select 
+                      value={formData.status} 
+                      onChange={(e) => setFormData({...formData, status: e.target.value})} 
+                      className="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-white focus:ring-primary-500 focus:border-primary-500"
+                    >
+                      {statusLevels.map(status => (
+                        <option key={status.id} value={status.value}>{status.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
               </div>
 
               <div className="flex justify-end space-x-3">
@@ -707,14 +726,32 @@ const Tickets = () => {
                 </button>
               </div>
               <div className="flex space-x-3">
-                <button className="bg-dark-bg hover:bg-dark-hover text-white px-4 py-2 rounded-lg transition-colors">
+                <button 
+                  onClick={() => {
+                    // Перенаправлення на сторінку АРМ з фільтром по поточному АРМ
+                    window.location.href = `/workstations`;
+                  }}
+                  className="bg-dark-bg hover:bg-dark-hover text-white px-4 py-2 rounded-lg transition-colors"
+                >
                   АРМ
                 </button>
-                <button className="bg-dark-bg hover:bg-dark-hover text-white px-4 py-2 rounded-lg transition-colors">
+                <button 
+                  onClick={() => {
+                    // Перенаправлення на сторінку ремонтів з фільтром по поточному АРМ
+                    window.location.href = `/repairs`;
+                  }}
+                  className="bg-dark-bg hover:bg-dark-hover text-white px-4 py-2 rounded-lg transition-colors"
+                >
                   Ремонти
                 </button>
-                <button className="bg-dark-bg hover:bg-dark-hover text-white px-4 py-2 rounded-lg transition-colors">
-                  Історія
+                <button 
+                  onClick={() => {
+                    // Перенаправлення на сторінку ПЗ з фільтром по поточному АРМ
+                    window.location.href = `/software`;
+                  }}
+                  className="bg-dark-bg hover:bg-dark-hover text-white px-4 py-2 rounded-lg transition-colors"
+                >
+                  ПЗ
                 </button>
               </div>
             </div>

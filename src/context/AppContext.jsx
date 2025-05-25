@@ -14,6 +14,7 @@ export const AppProvider = ({ children }) => {
   const [workstationStatuses, setWorkstationStatuses] = useState([]);
   const [grifLevels, setGrifLevels] = useState([]);
   const [selectedWorkstationSoftware, setSelectedWorkstationSoftware] = useState([]);
+  const [allSoftware, setAllSoftware] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [currentUser, setCurrentUser] = useState(() => {
@@ -32,7 +33,7 @@ export const AppProvider = ({ children }) => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [workstationsRes, usersRes, ticketsRes, repairsRes, departmentsRes, workstationStatusesRes, grifLevelsRes] = await Promise.all([
+      const [workstationsRes, usersRes, ticketsRes, repairsRes, departmentsRes, workstationStatusesRes, grifLevelsRes, softwareRes] = await Promise.all([
         axios.get(`${API_URL}/workstations`),
         axios.get(`${API_URL}/users`),
         axios.get(`${API_URL}/tickets`),
@@ -40,7 +41,8 @@ export const AppProvider = ({ children }) => {
         // Додаємо запити до нових ендпоінтів
         axios.get(`${API_URL}/departments`),
         axios.get(`${API_URL}/workstationstatuses`),
-        axios.get(`${API_URL}/griflevels`)
+        axios.get(`${API_URL}/griflevels`),
+        axios.get(`${API_URL}/software`)
       ]);
 
       setWorkstations(workstationsRes.data);
@@ -51,6 +53,7 @@ export const AppProvider = ({ children }) => {
       setDepartments(departmentsRes.data);
       setWorkstationStatuses(workstationStatusesRes.data);
       setGrifLevels(grifLevelsRes.data);
+      setAllSoftware(softwareRes.data);
 
       setError(null);
     } catch (err) {
@@ -81,43 +84,33 @@ export const AppProvider = ({ children }) => {
     }
   };
 
-  // Placeholder CRUD for software - implement as needed
-  const addSoftware = async (workstationId, softwareItem) => {
+  // Software CRUD operations
+  const addSoftwareToWorkstation = async (workstationId, softwareItem) => {
     try {
-      // const response = await axios.post(`${API_URL}/workstations/${workstationId}/software`, softwareItem);
-      // TODO: Update local state if backend call is successful
-      // For now, just log and refetch or update manually if needed
-      console.log('Add software:', workstationId, softwareItem);
-      // await fetchSoftwareForWorkstation(workstationId); // Optionally refetch
-      alert('Функціонал додавання ПЗ ще не реалізовано на бекенді.');
-      // return response.data;
+      const response = await axios.post(`${API_URL}/software`, softwareItem);
+      setAllSoftware(prev => [...prev, response.data]);
+      return response.data;
     } catch (err) {
       setError('Помилка додавання ПЗ');
       throw err;
     }
   };
 
-  const updateSoftware = async (workstationId, softwareId, softwareItem) => {
+  const updateInstalledSoftware = async (softwareId, softwareItem) => {
     try {
-      // const response = await axios.put(`${API_URL}/workstations/${workstationId}/software/${softwareId}`, softwareItem);
-      // TODO: Update local state
-      console.log('Update software:', workstationId, softwareId, softwareItem);
-      // await fetchSoftwareForWorkstation(workstationId); // Optionally refetch
-      alert('Функціонал оновлення ПЗ ще не реалізовано на бекенді.');
-      // return response.data;
+      const response = await axios.put(`${API_URL}/software/${softwareId}`, softwareItem);
+      setAllSoftware(prev => prev.map(s => s.id === softwareId ? response.data : s));
+      return response.data;
     } catch (err) {
       setError('Помилка оновлення ПЗ');
       throw err;
     }
   };
 
-  const deleteSoftware = async (workstationId, softwareId) => {
+  const deleteInstalledSoftware = async (softwareId) => {
     try {
-      // await axios.delete(`${API_URL}/workstations/${workstationId}/software/${softwareId}`);
-      // TODO: Update local state
-      console.log('Delete software:', workstationId, softwareId);
-      // await fetchSoftwareForWorkstation(workstationId); // Optionally refetch
-      alert('Функціонал видалення ПЗ ще не реалізовано на бекенді.');
+      await axios.delete(`${API_URL}/software/${softwareId}`);
+      setAllSoftware(prev => prev.filter(s => s.id !== softwareId));
     } catch (err) {
       setError('Помилка видалення ПЗ');
       throw err;
@@ -265,6 +258,7 @@ export const AppProvider = ({ children }) => {
     workstationStatuses,
     grifLevels,
     selectedWorkstationSoftware,
+    allSoftware,
     loading,
     error,
     currentUser,
@@ -284,9 +278,9 @@ export const AppProvider = ({ children }) => {
     updateRepair,
     deleteRepair,
     fetchSoftwareForWorkstation,
-    addSoftware,
-    updateSoftware,
-    deleteSoftware,
+    addSoftwareToWorkstation,
+    updateInstalledSoftware,
+    deleteInstalledSoftware,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

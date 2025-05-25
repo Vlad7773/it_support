@@ -359,6 +359,110 @@ app.delete('/api/users/:id', async (req, res) => {
 });
 
 
+// SOFTWARE API
+app.get('/api/software', async (req, res) => {
+  try {
+    const software = await query(`
+      SELECT s.*, w.inventory_number as workstation_inventory_number
+      FROM software s
+      LEFT JOIN workstations w ON s.workstation_id = w.id
+      ORDER BY s.installed_date DESC
+    `);
+    res.json(software);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/software', async (req, res) => {
+  const { name, version, license_key, workstation_id, installed_date } = req.body;
+  if (!name || !version || !workstation_id) {
+    return res.status(400).json({ error: 'Name, version and workstation_id are required' });
+  }
+  try {
+    const result = await run(
+      'INSERT INTO software (name, version, license_key, workstation_id, installed_date) VALUES (?, ?, ?, ?, ?)',
+      [name, version, license_key, workstation_id, installed_date || new Date().toISOString().split('T')[0]]
+    );
+    const newSoftware = await getOne(`
+      SELECT s.*, w.inventory_number as workstation_inventory_number
+      FROM software s
+      LEFT JOIN workstations w ON s.workstation_id = w.id
+      WHERE s.id = ?
+    `, [result.lastInsertRowid]);
+    res.status(201).json(newSoftware);
+  } catch (error) {
+    console.error('Error creating software:', error);
+    res.status(500).json({ error: 'Internal server error creating software' });
+  }
+});
+
+app.put('/api/software/:id', async (req, res) => {
+  const { id } = req.params;
+  const { name, version, license_key, workstation_id, installed_date } = req.body;
+  if (!name && !version && !workstation_id && !license_key && !installed_date) {
+    return res.status(400).json({ error: 'At least one field must be provided for update.' });
+  }
+  try {
+    const currentSoftware = await getOne('SELECT * FROM software WHERE id = ?', [id]);
+    if (!currentSoftware) {
+      return res.status(404).json({ error: 'Software not found' });
+    }
+    await run(
+      'UPDATE software SET name = ?, version = ?, license_key = ?, workstation_id = ?, installed_date = ? WHERE id = ?',
+      [
+        name !== undefined ? name : currentSoftware.name,
+        version !== undefined ? version : currentSoftware.version,
+        license_key !== undefined ? license_key : currentSoftware.license_key,
+        workstation_id !== undefined ? workstation_id : currentSoftware.workstation_id,
+        installed_date !== undefined ? installed_date : currentSoftware.installed_date,
+        id
+      ]
+    );
+    const updatedSoftware = await getOne(`
+      SELECT s.*, w.inventory_number as workstation_inventory_number
+      FROM software s
+      LEFT JOIN workstations w ON s.workstation_id = w.id
+      WHERE s.id = ?
+    `, [id]);
+    res.json(updatedSoftware);
+  } catch (error) {
+    console.error('Error updating software:', error);
+    res.status(500).json({ error: 'Internal server error updating software' });
+  }
+});
+
+app.delete('/api/software/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const result = await run('DELETE FROM software WHERE id = ?', [id]);
+    if (result.changes === 0) {
+        return res.status(404).json({ error: 'Software not found' });
+    }
+    res.status(204).send();
+  } catch (error) {
+    console.error('Error deleting software:', error);
+    res.status(500).json({ error: 'Internal server error deleting software' });
+  }
+});
+
+// Get software for specific workstation (if needed)
+app.get('/api/workstations/:id/software', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const software = await query(`
+      SELECT s.*, w.inventory_number as workstation_inventory_number
+      FROM software s
+      LEFT JOIN workstations w ON s.workstation_id = w.id
+      WHERE s.workstation_id = ?
+      ORDER BY s.installed_date DESC
+    `, [id]);
+    res.json(software);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // DEPARTMENTS API
 app.get('/api/departments', async (req, res) => {
   try {
@@ -410,7 +514,7 @@ app.get('/api/tickets', async (req, res) => {
   try {
     const tickets = await query(`
       SELECT 
-        t.id, t.description, t.status, t.priority, t.created_at, t.updated_at,
+        t.id, t.title, t.type, t.description, t.status, t.priority, t.user_id, t.workstation_id, t.assigned_to, t.created_at, t.updated_at,
         u_reporter.full_name as reporter_name, 
         u_assignee.full_name as assignee_name,
         w.inventory_number as workstation_inventory_number
@@ -418,7 +522,7 @@ app.get('/api/tickets', async (req, res) => {
       LEFT JOIN users u_reporter ON t.user_id = u_reporter.id
       LEFT JOIN users u_assignee ON t.assigned_to = u_assignee.id
       LEFT JOIN workstations w ON t.workstation_id = w.id
-      ORDER BY t.created_at DESC
+      ORDER BY t.id DESC
     `);
     res.json(tickets);
   } catch (error) {
@@ -427,18 +531,18 @@ app.get('/api/tickets', async (req, res) => {
 });
 
 app.post('/api/tickets', async (req, res) => {
-  const { user_id, workstation_id, description, status, priority, assigned_to } = req.body;
-  if (!description || !user_id) { // user_id - хто створив, має бути відомий (наприклад, з сесії)
-    return res.status(400).json({ error: 'Description and reporter ID (user_id) are required' });
+  const { user_id, workstation_id, title, type, description, status, priority, assigned_to } = req.body;
+  if (!title || !description || !user_id || !workstation_id) {
+    return res.status(400).json({ error: 'Title, description, user_id and workstation_id are required' });
   }
   try {
     const currentTime = new Date().toISOString();
     const result = await run(
-      'INSERT INTO tickets (user_id, workstation_id, description, status, priority, created_at, updated_at, assigned_to) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-      [user_id, workstation_id, description, status || 'open', priority || 'medium', currentTime, currentTime, assigned_to]
+      'INSERT INTO tickets (user_id, workstation_id, title, type, description, status, priority, created_at, updated_at, assigned_to) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [user_id, workstation_id, title, type || 'other', description, status || 'open', priority || 'medium', currentTime, currentTime, assigned_to]
     );
     const newTicket = await getOne(`
-      SELECT t.id, t.description, t.status, t.priority, t.created_at, t.updated_at,
+      SELECT t.id, t.title, t.type, t.description, t.status, t.priority, t.user_id, t.workstation_id, t.assigned_to, t.created_at, t.updated_at,
              u_reporter.full_name as reporter_name, 
              u_assignee.full_name as assignee_name,
              w.inventory_number as workstation_inventory_number
@@ -457,8 +561,8 @@ app.post('/api/tickets', async (req, res) => {
 
 app.put('/api/tickets/:id', async (req, res) => {
   const { id } = req.params;
-  const { workstation_id, description, status, priority, assigned_to } = req.body;
-   if (!description && !status && !priority && workstation_id === undefined && assigned_to === undefined) {
+  const { workstation_id, title, type, description, status, priority, assigned_to } = req.body;
+   if (!title && !type && !description && !status && !priority && workstation_id === undefined && assigned_to === undefined) {
     return res.status(400).json({ error: 'At least one field must be provided for update.' });
   }
   try {
@@ -470,9 +574,11 @@ app.put('/api/tickets/:id', async (req, res) => {
     }
 
     await run(
-      'UPDATE tickets SET workstation_id = ?, description = ?, status = ?, priority = ?, updated_at = ?, assigned_to = ? WHERE id = ?',
+      'UPDATE tickets SET workstation_id = ?, title = ?, type = ?, description = ?, status = ?, priority = ?, updated_at = ?, assigned_to = ? WHERE id = ?',
       [
         workstation_id !== undefined ? workstation_id : currentTicket.workstation_id,
+        title !== undefined ? title : currentTicket.title,
+        type !== undefined ? type : currentTicket.type,
         description !== undefined ? description : currentTicket.description,
         status !== undefined ? status : currentTicket.status,
         priority !== undefined ? priority : currentTicket.priority,
@@ -482,7 +588,7 @@ app.put('/api/tickets/:id', async (req, res) => {
       ]
     );
     const updatedTicket = await getOne(`
-      SELECT t.id, t.description, t.status, t.priority, t.created_at, t.updated_at,
+      SELECT t.id, t.title, t.type, t.description, t.status, t.priority, t.user_id, t.workstation_id, t.assigned_to, t.created_at, t.updated_at,
              u_reporter.full_name as reporter_name, 
              u_assignee.full_name as assignee_name,
              w.inventory_number as workstation_inventory_number
@@ -518,7 +624,7 @@ app.get('/api/repairs', async (req, res) => {
   try {
     const repairs = await query(`
       SELECT 
-        r.id, r.description, r.repair_date, r.cost, r.status,
+        r.id, r.workstation_id, r.technician_id, r.description, r.repair_date, r.cost, r.status, r.created_at, r.updated_at,
         w.inventory_number as workstation_inventory_number,
         u_tech.full_name as technician_name
       FROM repairs r
@@ -543,7 +649,7 @@ app.post('/api/repairs', async (req, res) => {
       [workstation_id, technician_id, description, repair_date, cost, status || 'pending']
     );
     const newRepair = await getOne(`
-      SELECT r.id, r.description, r.repair_date, r.cost, r.status,
+      SELECT r.id, r.workstation_id, r.technician_id, r.description, r.repair_date, r.cost, r.status, r.created_at, r.updated_at,
              w.inventory_number as workstation_inventory_number,
              u_tech.full_name as technician_name
       FROM repairs r
@@ -582,7 +688,7 @@ app.put('/api/repairs/:id', async (req, res) => {
       ]
     );
     const updatedRepair = await getOne(`
-      SELECT r.id, r.description, r.repair_date, r.cost, r.status,
+      SELECT r.id, r.workstation_id, r.technician_id, r.description, r.repair_date, r.cost, r.status, r.created_at, r.updated_at,
              w.inventory_number as workstation_inventory_number,
              u_tech.full_name as technician_name
       FROM repairs r

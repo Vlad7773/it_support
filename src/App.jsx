@@ -9,10 +9,8 @@ import Tickets from './pages/Tickets';
 import Repairs from './pages/Repairs';
 import Users from './pages/Users';
 import Software from './pages/Software';
-
-// Тимчасові компоненти для інших сторінок
-const Reports = () => <div className="text-white">Сторінка звітів</div>;
-const Settings = () => <div className="text-white">Сторінка налаштувань</div>;
+import Reports from './pages/Reports';
+import Settings from './pages/Settings';
 
 const ProtectedRoute = ({ children }) => {
   try {

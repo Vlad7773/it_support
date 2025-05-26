@@ -49,6 +49,7 @@ const Repairs = () => {
 
   const initialFormData = {
     workstation_id: '',
+    workstation_number: 'АРМ-',
     technician_id: '',
     description: '',
     repair_date: new Date().toISOString().split('T')[0],
@@ -152,8 +153,10 @@ const Repairs = () => {
 
   const openEditModal = (repair) => {
     setSelectedRepair(repair);
+    const workstation = workstations.find(w => w.id === repair.workstation_id);
     setFormData({
       workstation_id: repair.workstation_id?.toString() || '',
+      workstation_number: workstation?.inventory_number || 'АРМ-',
       technician_id: repair.technician_id?.toString() || '',
       description: repair.description || '',
       repair_date: repair.repair_date || new Date().toISOString().split('T')[0],
@@ -360,19 +363,43 @@ const Repairs = () => {
                   <label className="block text-sm font-medium text-dark-textSecondary mb-1">
                     АРМ <span className="text-red-500">*</span>
                   </label>
-                  <select 
-                    value={formData.workstation_id} 
-                    onChange={(e) => handleWorkstationChange(e.target.value)} 
+                  <input 
+                    type="text"
+                    value={formData.workstation_number || ''}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setFormData({...formData, workstation_number: value});
+                      
+                      // Автопошук АРМ
+                      if (value.length >= 3) {
+                        const matchingWorkstation = workstations.find(ws => 
+                          ws.inventory_number.toLowerCase().includes(value.toLowerCase())
+                        );
+                        if (matchingWorkstation) {
+                          setFormData(prev => ({
+                            ...prev, 
+                            workstation_id: matchingWorkstation.id.toString(),
+                            workstation_number: matchingWorkstation.inventory_number
+                          }));
+                        }
+                      }
+                    }}
                     className="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-white focus:ring-primary-500 focus:border-primary-500" 
+                    placeholder="АРМ-001"
                     required
-                  >
-                    <option value="">Виберіть АРМ</option>
-                    {workstations.map(ws => (
-                      <option key={ws.id} value={ws.id}>
-                        {ws.inventory_number} - {departments.find(d => d.id === ws.department_id)?.name || 'Без підрозділу'}
-                      </option>
-                    ))}
-                  </select>
+                    list="workstation-suggestions-repairs"
+                  />
+                  <datalist id="workstation-suggestions-repairs">
+                    {workstations
+                      .filter(ws => formData.workstation_number ? 
+                        ws.inventory_number.toLowerCase().includes(formData.workstation_number.toLowerCase()) : true)
+                      .map(ws => (
+                        <option key={ws.id} value={ws.inventory_number}>
+                          {ws.inventory_number} - {departments.find(d => d.id === ws.department_id)?.name || 'Без підрозділу'}
+                        </option>
+                      ))
+                    }
+                  </datalist>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-dark-textSecondary mb-1">

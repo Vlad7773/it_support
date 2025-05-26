@@ -29,6 +29,9 @@ const Workstations = () => {
     users,
     workstationStatuses,
     grifLevels,
+    allSoftware,
+    tickets,
+    repairs,
   } = useApp();
 
   const [showAddModal, setShowAddModal] = useState(false);
@@ -380,7 +383,7 @@ const Workstations = () => {
             onChange={(e) => setFilterGrif(e.target.value)}
             className="bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
           >
-            <option value="all">Всі грифи</option>
+            <option value="all">Всі підрозділи</option>
             {grifLevels.filter(grif => grif.value !== 'відкрито').map(grif => (
               <option key={grif.id} value={grif.value}>{grif.name.replace('\n', ' ')}</option>
             ))}
@@ -861,23 +864,65 @@ const Workstations = () => {
           <div className="modal-content rounded-xl p-8 w-full max-w-6xl max-h-[90vh] overflow-y-auto animate-fadeIn">
             <div className="flex justify-between items-center mb-8">
               <h2 className="text-3xl font-bold text-white">
-                Деталі АРМ: <span className="ml-8">{selectedWorkstation.inventory_number}</span>
+                Деталі: <span className="ml-8">{selectedWorkstation.inventory_number}</span>
               </h2>
               <div className="flex space-x-3">
                 <button
-                  onClick={() => openEditModal(selectedWorkstation)}
+                  onClick={() => {
+                    // Перевіряємо чи є ПЗ для цього АРМ
+                    const workstationSoftware = allSoftware.filter(s => s.workstation_id === selectedWorkstation.id);
+                    
+                    if (workstationSoftware.length === 0) {
+                      alert(`Немає ПЗ для АРМ ${selectedWorkstation.inventory_number}`);
+                      return;
+                    }
+                    
+                    // Перенаправлення на сторінку ПЗ з фільтром по поточному АРМ
+                    window.location.href = `/software?workstation=${selectedWorkstation.id}`;
+                  }}
                   className="px-4 py-2 rounded-lg bg-[#64ffda] hover:bg-[#4fd1c7] text-[#0f0f23] font-semibold transition-colors"
                 >
                   ПЗ
                 </button>
-                <button className="px-4 py-2 rounded-lg bg-[#0f0f23] hover:bg-[#0e3460] text-white font-semibold transition-colors">
+                <button 
+                  onClick={() => {
+                    // Перевіряємо чи є заявки для цього АРМ
+                    const workstationTickets = tickets.filter(t => t.workstation_id === selectedWorkstation.id);
+                    
+                    if (workstationTickets.length === 0) {
+                      alert(`Немає заявок для АРМ ${selectedWorkstation.inventory_number}`);
+                      return;
+                    }
+                    
+                    // Перенаправлення на сторінку заявок з фільтром по поточному АРМ
+                    window.location.href = `/tickets?workstation=${selectedWorkstation.id}`;
+                  }}
+                  className="px-4 py-2 rounded-lg bg-[#0f0f23] hover:bg-[#0e3460] text-white font-semibold transition-colors"
+                >
                   Заявки
                 </button>
-                <button className="px-4 py-2 rounded-lg bg-[#0f0f23] hover:bg-[#0e3460] text-white font-semibold transition-colors">
+                <button 
+                  onClick={() => {
+                    // Перевіряємо чи є ремонти для цього АРМ
+                    const workstationRepairs = repairs.filter(r => r.workstation_id === selectedWorkstation.id);
+                    
+                    if (workstationRepairs.length === 0) {
+                      alert(`Немає ремонтів для АРМ ${selectedWorkstation.inventory_number}`);
+                      return;
+                    }
+                    
+                    // Перенаправлення на сторінку ремонтів з фільтром по поточному АРМ
+                    window.location.href = `/repairs?workstation=${selectedWorkstation.id}`;
+                  }}
+                  className="px-4 py-2 rounded-lg bg-[#0f0f23] hover:bg-[#0e3460] text-white font-semibold transition-colors"
+                >
                   Ремонти
                 </button>
                 <button
-                  onClick={() => openEditModal(selectedWorkstation)}
+                  onClick={() => {
+                    setShowDetailsModal(false);
+                    openEditModal(selectedWorkstation);
+                  }}
                   className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold transition-colors"
                 >
                   Редагувати

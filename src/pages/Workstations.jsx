@@ -47,17 +47,19 @@ const Workstations = () => {
     ip_address: '',
     mac_address: '',
     grif: 'ДСК',
-    os_name: '',
+    os_name: 'Win 10',
     department_id: '',
     responsible_id: '',
     contacts: '+380',
     notes: '',
     processor: '',
-    ram: '',
+    ram: '8',
     storage: '',
     monitor: '',
     network: '',
     type: 'Десктоп',
+    keyboard: false,
+    mouse: false,
   };
 
   const [formData, setFormData] = useState(initialFormData);
@@ -104,7 +106,7 @@ const Workstations = () => {
     return macRegex.test(mac);
   };
 
-  // Покращена валідація IP - тільки цифри і крапки, не більше 4 токенів, не дві крапки підряд
+  // Покращена валідація IP з підказками
   const handleIPChange = (value) => {
     // Видаляємо всі символи крім цифр і крапок
     let formatted = value.replace(/[^\d.]/g, '');
@@ -136,12 +138,12 @@ const Workstations = () => {
     setFormData(prev => ({ ...prev, ip_address: formatted }));
   };
 
-  // Автоформатування MAC
+  // Покращене автоформатування MAC з підказками
   const handleMACChange = (value) => {
     // Видаляємо всі символи крім hex цифр
     let formatted = value.replace(/[^0-9A-Fa-f]/g, '').toUpperCase();
     
-    // Додаємо двокрапки
+    // Додаємо двокрапки автоматично
     if (formatted.length > 2) {
       formatted = formatted.match(/.{1,2}/g).join(':');
     }
@@ -154,29 +156,24 @@ const Workstations = () => {
     setFormData(prev => ({ ...prev, mac_address: formatted }));
   };
 
-  // Автодоповнення для технічних полів
-  const handleTechFieldChange = (field, value) => {
-    let formatted = value;
+  // Функція для показу помилок
+  const showError = (message) => {
+    // Створюємо красиве спливаюче вікно
+    const errorDiv = document.createElement('div');
+    errorDiv.className = 'fixed top-4 right-4 bg-red-600 text-white px-6 py-4 rounded-lg shadow-lg z-50 animate-fadeIn';
+    errorDiv.innerHTML = `
+      <div class="flex items-center gap-3">
+        <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+          <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+        </svg>
+        <span>${message}</span>
+      </div>
+    `;
+    document.body.appendChild(errorDiv);
     
-    switch (field) {
-      case 'ram':
-        // Автодоповнення "ГБ"
-        if (value && !value.includes('ГБ') && /^\d+$/.test(value)) {
-          formatted = `${value} ГБ`;
-        }
-        break;
-      case 'storage':
-        // Автодоповнення "ГБ" або "ТБ"
-        if (value && !value.includes('ГБ') && !value.includes('ТБ') && /^\d+$/.test(value)) {
-          const num = parseInt(value);
-          formatted = num >= 1000 ? `${Math.floor(num/1000)} ТБ` : `${value} ГБ`;
-        }
-        break;
-      default:
-        break;
-    }
-    
-    setFormData(prev => ({ ...prev, [field]: formatted }));
+    setTimeout(() => {
+      errorDiv.remove();
+    }, 4000);
   };
 
   const handleAdd = async (e) => {
@@ -184,17 +181,17 @@ const Workstations = () => {
     
     // Валідація
     if (!formData.inventory_number || !formData.os_name || !formData.department_id) {
-      alert('Будь ласка, заповніть обов\'язкові поля');
+      showError('Будь ласка, заповніть обов\'язкові поля');
       return;
     }
     
     if (formData.ip_address && !validateIP(formData.ip_address)) {
-      alert('Невірний формат IP адреси');
+      showError('Невірний формат IP адреси. Приклад: 192.168.1.100');
       return;
     }
     
     if (formData.mac_address && !validateMAC(formData.mac_address)) {
-      alert('Невірний формат MAC адреси');
+      showError('Невірний формат MAC адреси. Приклад: 00:1A:2B:3C:4D:5E');
       return;
     }
     
@@ -284,6 +281,8 @@ const Workstations = () => {
       monitor: workstation.monitor || '',
       network: workstation.network || '',
       type: workstation.type || 'Десктоп',
+      keyboard: workstation.keyboard || false,
+      mouse: workstation.mouse || false,
     });
     setShowEditModal(true);
     setActiveTab('main');
@@ -352,8 +351,8 @@ const Workstations = () => {
       {/* Компактні фільтри */}
       <div className="bg-dark-card rounded-lg shadow-card p-4">
         <div className="flex flex-wrap items-center gap-4">
-          {/* Пошук */}
-          <div className="relative flex-1 min-w-[250px]">
+          {/* Пошук - зменшено на 40% */}
+          <div className="relative w-[300px]">
             <input
               type="text"
               placeholder="Пошук за інв. номером, IP адресою, відділом..."
@@ -364,7 +363,7 @@ const Workstations = () => {
             <MagnifyingGlassIcon className="h-5 w-5 text-dark-textSecondary absolute left-3 top-1/2 transform -translate-y-1/2" />
           </div>
           
-          {/* Фільтри */}
+          {/* Фільтри в новому порядку: підрозділ, гриф, відповідальний */}
           <select
             value={filterDepartment}
             onChange={(e) => setFilterDepartment(e.target.value)}
@@ -382,7 +381,7 @@ const Workstations = () => {
             className="bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
           >
             <option value="all">Всі грифи</option>
-            {grifLevels.map(grif => (
+            {grifLevels.filter(grif => grif.value !== 'відкрито').map(grif => (
               <option key={grif.id} value={grif.value}>{grif.name.replace('\n', ' ')}</option>
             ))}
           </select>
@@ -430,16 +429,24 @@ const Workstations = () => {
                         <span className="text-white font-medium">{ws.inventory_number}</span>
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-gray-300 font-mono">{ws.ip_address || '-'}</td>
+                    <td className="px-6 py-4 text-white font-mono">{ws.ip_address || '-'}</td>
                     <td className="px-6 py-4">
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${grifObj?.color || 'bg-gray-500 text-gray-100'}`}>
-                        {grifObj?.name || ws.grif}
+                      <span className="text-white">
+                        {grifLevels.find(g => g.value === ws.grif)?.name.replace('\n', ' ') || ws.grif}
                       </span>
                     </td>
                     <td className="px-6 py-4 text-gray-300">{department?.name || '-'}</td>
                     <td className="px-6 py-4 text-gray-300">{responsibleUser?.full_name || '-'}</td>
                     <td className="px-6 py-4 text-gray-300">{ws.contacts || '-'}</td>
-                    <td className="px-6 py-4 text-gray-300">{ws.registration_date || '-'}</td>
+                    <td className="px-6 py-4 text-gray-300">
+                      {ws.registration_date ? 
+                        new Date(ws.registration_date).toLocaleDateString('uk-UA', {
+                          day: '2-digit',
+                          month: '2-digit', 
+                          year: 'numeric'
+                        }) : '-'
+                      }
+                    </td>
                     <td className="px-6 py-4 text-center">
                       <button
                         onClick={() => openDetailsModal(ws)}
@@ -539,28 +546,6 @@ const Workstations = () => {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-[#8892b0] mb-2">
-                      Операційна система <span className="text-red-400">*</span>
-                    </label>
-                    <input 
-                      type="text" 
-                      list="os-list"
-                      value={formData.os_name} 
-                      onChange={(e) => setFormData({...formData, os_name: e.target.value})} 
-                      className="modern-input" 
-                      required 
-                      placeholder="Windows 11 Pro"
-                    />
-                    <datalist id="os-list">
-                      <option value="Windows 10" />
-                      <option value="Windows 11" />
-                      <option value="Windows 11 Pro" />
-                      <option value="Linux Ubuntu" />
-                      <option value="Linux CentOS" />
-                      <option value="Linux Debian" />
-                    </datalist>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-[#8892b0] mb-2">
                       Підрозділ <span className="text-red-400">*</span>
                     </label>
                     <input 
@@ -619,7 +604,7 @@ const Workstations = () => {
                       <option value="Сервер">Сервер</option>
                     </select>
                   </div>
-                  <div className="lg:col-span-2">
+                  <div>
                     <label className="block text-sm font-medium text-[#8892b0] mb-2">Контакти</label>
                     <input 
                       type="text" 
@@ -636,7 +621,26 @@ const Workstations = () => {
               {activeTab === 'network' && (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-7">
                   <div>
-                    <label className="block text-sm font-medium text-[#8892b0] mb-2">IP адреса</label>
+                    <label className="block text-sm font-medium text-[#8892b0] mb-2">
+                      Операційна система <span className="text-red-400">*</span>
+                    </label>
+                    <select 
+                      value={formData.os_name} 
+                      onChange={(e) => setFormData({...formData, os_name: e.target.value})} 
+                      className="modern-select" 
+                      required
+                    >
+                      <option value="">Виберіть ОС</option>
+                      <option value="Win 11">Win 11</option>
+                      <option value="Win 10">Win 10</option>
+                      <option value="Linux">Linux</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-[#8892b0] mb-2">
+                      IP адреса
+                      <span className="text-xs text-[#64ffda] ml-2">(Приклад: 192.168.1.100)</span>
+                    </label>
                     <input 
                       type="text" 
                       value={formData.ip_address} 
@@ -646,7 +650,10 @@ const Workstations = () => {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-[#8892b0] mb-2">MAC адреса</label>
+                    <label className="block text-sm font-medium text-[#8892b0] mb-2">
+                      MAC адреса
+                      <span className="text-xs text-[#64ffda] ml-2">(Приклад: 00:1A:2B:3C:4D:5E)</span>
+                    </label>
                     <input 
                       type="text" 
                       value={formData.mac_address} 
@@ -655,7 +662,7 @@ const Workstations = () => {
                       placeholder="00:1A:2B:3C:4D:5E"
                     />
                   </div>
-                  <div className="lg:col-span-2">
+                  <div>
                     <label className="block text-sm font-medium text-[#8892b0] mb-2">Мережеві інтерфейси</label>
                     <input 
                       type="text" 
@@ -682,23 +689,30 @@ const Workstations = () => {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-[#8892b0] mb-2">ОЗУ</label>
-                    <input 
-                      type="text" 
+                    <label className="block text-sm font-medium text-[#8892b0] mb-2">ОЗУ (ГБ)</label>
+                    <select 
                       value={formData.ram} 
-                      onChange={(e) => handleTechFieldChange('ram', e.target.value)} 
-                      className="modern-input" 
-                      placeholder="16 ГБ DDR4"
-                    />
+                      onChange={(e) => setFormData({...formData, ram: e.target.value})} 
+                      className="modern-select"
+                    >
+                      <option value="2">2 ГБ</option>
+                      <option value="4">4 ГБ</option>
+                      <option value="6">6 ГБ</option>
+                      <option value="8">8 ГБ</option>
+                      <option value="10">10 ГБ</option>
+                      <option value="12">12 ГБ</option>
+                      <option value="14">14 ГБ</option>
+                      <option value="16">16 ГБ</option>
+                    </select>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-[#8892b0] mb-2">Накопичувач</label>
                     <input 
                       type="text" 
                       value={formData.storage} 
-                      onChange={(e) => handleTechFieldChange('storage', e.target.value)} 
+                      onChange={(e) => setFormData({...formData, storage: e.target.value})} 
                       className="modern-input" 
-                      placeholder="SSD 512 ГБ"
+                      placeholder="512 ГБ SSD"
                     />
                   </div>
                   <div>
@@ -708,8 +722,31 @@ const Workstations = () => {
                       value={formData.monitor} 
                       onChange={(e) => setFormData({...formData, monitor: e.target.value})} 
                       className="modern-input" 
-                      placeholder='Dell 24" 1920x1080'
+                      placeholder="24&quot; Full HD"
                     />
+                  </div>
+                  <div className="lg:col-span-2">
+                    <label className="block text-sm font-medium text-[#8892b0] mb-3">Додаткове обладнання</label>
+                    <div className="flex gap-6">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input 
+                          type="checkbox" 
+                          checked={formData.keyboard} 
+                          onChange={(e) => setFormData({...formData, keyboard: e.target.checked})} 
+                          className="w-4 h-4 text-[#64ffda] bg-dark-bg border-dark-border rounded focus:ring-[#64ffda] focus:ring-2"
+                        />
+                        <span className="text-white">Клавіатура</span>
+                      </label>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input 
+                          type="checkbox" 
+                          checked={formData.mouse} 
+                          onChange={(e) => setFormData({...formData, mouse: e.target.checked})} 
+                          className="w-4 h-4 text-[#64ffda] bg-dark-bg border-dark-border rounded focus:ring-[#64ffda] focus:ring-2"
+                        />
+                        <span className="text-white">Миша</span>
+                      </label>
+                    </div>
                   </div>
                 </div>
               )}
@@ -824,14 +861,43 @@ const Workstations = () => {
           <div className="modal-content rounded-xl p-8 w-full max-w-6xl max-h-[90vh] overflow-y-auto animate-fadeIn">
             <div className="flex justify-between items-center mb-8">
               <h2 className="text-3xl font-bold text-white">
-                Деталі АРМ: {selectedWorkstation.inventory_number}
+                Деталі АРМ: <span className="ml-8">{selectedWorkstation.inventory_number}</span>
               </h2>
-              <button 
-                onClick={() => setShowDetailsModal(false)} 
-                className="text-[#8892b0] hover:text-white p-2 rounded-lg hover:bg-[#0e3460] transition-colors"
-              >
-                <XMarkIcon className="h-6 w-6" />
-              </button>
+              <div className="flex space-x-3">
+                <button
+                  onClick={() => openEditModal(selectedWorkstation)}
+                  className="px-4 py-2 rounded-lg bg-[#64ffda] hover:bg-[#4fd1c7] text-[#0f0f23] font-semibold transition-colors"
+                >
+                  ПЗ
+                </button>
+                <button className="px-4 py-2 rounded-lg bg-[#0f0f23] hover:bg-[#0e3460] text-white font-semibold transition-colors">
+                  Заявки
+                </button>
+                <button className="px-4 py-2 rounded-lg bg-[#0f0f23] hover:bg-[#0e3460] text-white font-semibold transition-colors">
+                  Ремонти
+                </button>
+                <button
+                  onClick={() => openEditModal(selectedWorkstation)}
+                  className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold transition-colors"
+                >
+                  Редагувати
+                </button>
+                <button
+                  onClick={() => {
+                    setShowDetailsModal(false);
+                    setShowDeleteModal(true);
+                  }}
+                  className="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white font-semibold transition-colors"
+                >
+                  Видалити
+                </button>
+                <button 
+                  onClick={() => setShowDetailsModal(false)} 
+                  className="text-[#8892b0] hover:text-white p-2 rounded-lg hover:bg-[#0e3460] transition-colors"
+                >
+                  <XMarkIcon className="h-6 w-6" />
+                </button>
+              </div>
             </div>
             
             {/* Основна інформація */}
@@ -859,8 +925,8 @@ const Workstations = () => {
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-[#8892b0]">Гриф:</span>
-                    <span className={`status-badge ${grifLevels.find(g => g.value === selectedWorkstation.grif)?.color || 'bg-gray-500 bg-opacity-20 text-gray-300'}`}>
-                      {grifLevels.find(g => g.value === selectedWorkstation.grif)?.name || selectedWorkstation.grif}
+                    <span className="text-white">
+                      {grifLevels.find(g => g.value === selectedWorkstation.grif)?.name.replace('\n', ' ') || selectedWorkstation.grif}
                     </span>
                   </div>
                 </div>
@@ -873,23 +939,27 @@ const Workstations = () => {
                 <div className="space-y-4">
                   <div className="flex justify-between items-center">
                     <span className="text-[#8892b0]">IP адреса:</span>
-                    <span className="text-white font-mono font-medium">{selectedWorkstation.ip_address || 'N/A'}</span>
+                    <span className="text-white font-mono">{selectedWorkstation.ip_address || 'N/A'}</span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-[#8892b0]">MAC адреса:</span>
-                    <span className="text-white font-mono font-medium">{selectedWorkstation.mac_address || 'N/A'}</span>
+                    <span className="text-white font-mono">{selectedWorkstation.mac_address || 'N/A'}</span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-[#8892b0]">Мережа:</span>
-                    <span className="text-white">{selectedWorkstation.network || 'N/A'}</span>
+                    <span className="text-[#8892b0]">Дата реєстрації:</span>
+                    <span className="text-white">
+                      {selectedWorkstation.registration_date ? 
+                        new Date(selectedWorkstation.registration_date).toLocaleDateString('uk-UA', {
+                          day: '2-digit',
+                          month: '2-digit', 
+                          year: 'numeric'
+                        }) : 'N/A'
+                      }
+                    </span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-[#8892b0]">Контакти:</span>
                     <span className="text-white">{selectedWorkstation.contacts || 'N/A'}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-[#8892b0]">Дата реєстрації:</span>
-                    <span className="text-white">{selectedWorkstation.registration_date || 'N/A'}</span>
                   </div>
                 </div>
               </div>
@@ -935,38 +1005,6 @@ const Workstations = () => {
                 </div>
               </div>
             )}
-
-            {/* Дії */}
-            <div className="flex justify-between items-center">
-              <div className="flex space-x-4">
-                <button
-                  onClick={() => openEditModal(selectedWorkstation)}
-                  className="btn-gradient"
-                >
-                  Редагувати
-                </button>
-                <button
-                  onClick={() => {
-                    setShowDetailsModal(false);
-                    setShowDeleteModal(true);
-                  }}
-                  className="px-6 py-3 rounded-lg bg-red-600 hover:bg-red-700 text-white font-semibold transition-colors"
-                >
-                  Видалити
-                </button>
-              </div>
-              <div className="flex space-x-4">
-                <button className="px-6 py-3 rounded-lg bg-[#0f0f23] hover:bg-[#0e3460] text-white font-semibold transition-colors">
-                  ПЗ
-                </button>
-                <button className="px-6 py-3 rounded-lg bg-[#0f0f23] hover:bg-[#0e3460] text-white font-semibold transition-colors">
-                  Заявки
-                </button>
-                <button className="px-6 py-3 rounded-lg bg-[#0f0f23] hover:bg-[#0e3460] text-white font-semibold transition-colors">
-                  Ремонти
-                </button>
-              </div>
-            </div>
           </div>
         </div>
       )}

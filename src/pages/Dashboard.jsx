@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useApp } from '../context/AppContext';
+import { useNavigate } from 'react-router-dom';
 import {
   ComputerDesktopIcon,
   UsersIcon,
@@ -8,7 +9,8 @@ import {
   ChartBarIcon,
   ClockIcon,
   CheckCircleIcon,
-  ExclamationTriangleIcon
+  ExclamationTriangleIcon,
+  CubeIcon
 } from '@heroicons/react/24/outline';
 import {
   Chart as ChartJS,
@@ -37,8 +39,9 @@ ChartJS.register(
 );
 
 const Dashboard = () => {
-  const { workstations, users, tickets, repairs, loading, error } = useApp();
+  const { workstations, users, tickets, repairs, allSoftware, loading, error } = useApp();
   const [stats, setStats] = useState([]);
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (workstations && users && tickets && repairs) {
@@ -54,7 +57,7 @@ const Dashboard = () => {
           icon: ComputerDesktopIcon,
           change: '+12%',
           bgGradient: 'from-blue-500 to-cyan-400',
-          iconColor: 'text-blue-400'
+          link: '/workstations',
         },
         {
           title: 'Активні користувачі',
@@ -62,7 +65,7 @@ const Dashboard = () => {
           icon: UsersIcon,
           change: '+5%',
           bgGradient: 'from-green-500 to-emerald-400',
-          iconColor: 'text-green-400'
+          link: '/users',
         },
         {
           title: 'На ремонті',
@@ -70,7 +73,7 @@ const Dashboard = () => {
           icon: WrenchScrewdriverIcon,
           change: '-2%',
           bgGradient: 'from-red-500 to-pink-400',
-          iconColor: 'text-red-400'
+          link: '/repairs',
         },
         {
           title: 'Відкриті заявки',
@@ -78,7 +81,7 @@ const Dashboard = () => {
           icon: TicketIcon,
           change: '+8%',
           bgGradient: 'from-purple-500 to-violet-400',
-          iconColor: 'text-purple-400'
+          link: '/tickets',
         }
       ]);
     }
@@ -86,22 +89,21 @@ const Dashboard = () => {
 
   // Дані для графіків
   const osData = {
-    labels: ['Windows 10', 'Windows 11', 'Ubuntu', 'macOS'],
+    labels: ['Win 11', 'Win 10', 'Linux'],
     datasets: [{
       label: 'Кількість АРМ',
       data: [
-        workstations?.filter(w => w.os_name?.includes('Windows 10')).length || 0,
         workstations?.filter(w => w.os_name?.includes('Windows 11')).length || 0,
-        workstations?.filter(w => w.os_name?.includes('Ubuntu')).length || 0,
-        workstations?.filter(w => w.os_name?.includes('macOS')).length || 0,
+        workstations?.filter(w => w.os_name?.includes('Windows 10')).length || 0,
+        workstations?.filter(w => w.os_name?.includes('Ubuntu') || w.os_name?.includes('Linux')).length || 0,
       ],
-      backgroundColor: ['#3b82f6', '#64ffda', '#f59e0b', '#8b5cf6'],
+      backgroundColor: ['#eab308', '#3b82f6', '#f97316'],
       borderRadius: 8,
     }]
   };
 
   const ticketTrendsData = {
-    labels: ['Січ', 'Лют', 'Бер', 'Кві', 'Тра', 'Чер'],
+    labels: ['Січ', 'Лют', 'Бер', 'Квіт', 'Трав', 'Черв'],
     datasets: [{
       label: 'Нові заявки',
       data: [12, 19, 15, 25, 22, 30],
@@ -125,6 +127,21 @@ const Dashboard = () => {
     }]
   };
 
+  // Додаємо дані для ПЗ діаграми
+  const softwareData = {
+    labels: ['Microsoft Office', 'Adobe', 'Безкоштовне ПЗ', 'Інше'],
+    datasets: [{
+      data: [
+        allSoftware?.filter(s => s.name?.includes('Microsoft Office')).length || 0,
+        allSoftware?.filter(s => s.name?.includes('Adobe')).length || 0,
+        allSoftware?.filter(s => s.license_key === 'FREE').length || 0,
+        allSoftware?.filter(s => !s.name?.includes('Microsoft Office') && !s.name?.includes('Adobe') && s.license_key !== 'FREE').length || 0,
+      ],
+      backgroundColor: ['#3b82f6', '#e11d48', '#10b981', '#8b5cf6'],
+      borderWidth: 0,
+    }]
+  };
+
   const chartOptions = {
     responsive: true,
     maintainAspectRatio: false,
@@ -142,12 +159,100 @@ const Dashboard = () => {
     },
     scales: {
       x: {
-        display: false,
+        display: true,
+        grid: {
+          color: 'rgba(136,146,176,0.15)',
+          drawBorder: false,
+        },
+        ticks: {
+          color: '#8892b0',
+          font: { size: 11 }
+        }
       },
       y: {
-        display: false,
+        display: true,
+        grid: {
+          color: 'rgba(136,146,176,0.15)',
+          drawBorder: false,
+        },
+        ticks: {
+          color: '#8892b0',
+          font: { size: 11 }
+        }
       }
     }
+  };
+
+  // Опції для стовпчастої діаграми з легендою збоку
+  const barChartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        display: false,
+      },
+      tooltip: {
+        backgroundColor: 'rgba(22, 33, 62, 0.9)',
+        titleColor: '#64ffda',
+        bodyColor: '#ffffff',
+        borderColor: '#64ffda',
+        borderWidth: 1,
+      }
+    },
+    scales: {
+      x: {
+        display: true,
+        grid: {
+          color: 'rgba(136,146,176,0.15)',
+          drawBorder: false,
+        },
+        ticks: {
+          color: '#8892b0',
+          font: { size: 11 }
+        }
+      },
+      y: {
+        display: true,
+        grid: {
+          color: 'rgba(136,146,176,0.15)',
+          drawBorder: false,
+        },
+        ticks: {
+          color: '#8892b0',
+          font: { size: 11 },
+          stepSize: (workstations && workstations.length > 15) ? 5 : 1,
+        },
+        beginAtZero: true
+      }
+    }
+  };
+
+  // Опції для кругових діаграм з легендою знизу
+  const doughnutOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        display: true,
+        position: 'bottom',
+        labels: {
+          color: '#8892b0',
+          usePointStyle: true,
+          font: {
+            size: 11
+          },
+          padding: 15
+        }
+      },
+      tooltip: {
+        backgroundColor: 'rgba(22, 33, 62, 0.9)',
+        titleColor: '#64ffda',
+        bodyColor: '#ffffff',
+        borderColor: '#64ffda',
+        borderWidth: 1,
+      }
+    },
+    cutout: '60%'
   };
 
   if (loading) return (
@@ -170,7 +275,14 @@ const Dashboard = () => {
       {/* Статистичні картки */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {stats.map((stat, index) => (
-          <div key={index} className="stat-card group cursor-pointer relative">
+          <div
+            key={index}
+            className="stat-card group cursor-pointer relative"
+            onClick={() => stat.link && navigate(stat.link)}
+            tabIndex={0}
+            role="button"
+            onKeyDown={e => (e.key === 'Enter' || e.key === ' ') && stat.link && navigate(stat.link)}
+          >
             <div className={`absolute inset-0 bg-gradient-to-br ${stat.bgGradient} opacity-5 rounded-xl group-hover:opacity-10 transition-opacity`}></div>
             <div className="relative">
               <div className="flex items-center justify-between mb-4">
@@ -178,8 +290,8 @@ const Dashboard = () => {
                   <p className="text-sm font-medium text-[#8892b0]">{stat.title}</p>
                   <p className="text-3xl font-bold text-white">{stat.value}</p>
                 </div>
-                <div className={`p-3 rounded-xl bg-gradient-to-br ${stat.bgGradient} bg-opacity-20`}>
-                  <stat.icon className={`h-6 w-6 ${stat.iconColor}`} />
+                <div className={`p-3 rounded-xl bg-gradient-to-br ${stat.bgGradient} bg-opacity-20 border-2 border-white border-opacity-30`}>
+                  <stat.icon className="h-6 w-6 text-white drop-shadow-lg" style={{filter: 'drop-shadow(0 0 4px rgba(0,0,0,0.3))'}} />
                 </div>
               </div>
               <div className="flex items-center">
@@ -193,17 +305,20 @@ const Dashboard = () => {
 
       {/* Графіки та діаграми */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Розподіл за ОС */}
+        {/* Операційні системи */}
         <div className="dark-card rounded-xl p-6">
           <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-semibold text-white">Розподіл за ОС</h3>
+            <h3 className="text-lg font-semibold text-white">Операційні системи</h3>
             <ChartBarIcon className="h-5 w-5 text-[#64ffda]" />
           </div>
           <div className="h-48">
-            <Bar data={osData} options={chartOptions} />
+            <Bar data={osData} options={barChartOptions} />
           </div>
-          <div className="mt-4 text-sm text-[#8892b0]">
-            Статистика операційних систем
+          {/* Кастомна легенда для ОС під діаграмою */}
+          <div className="flex flex-row gap-4 items-center justify-end mt-2">
+            <div className="flex items-center gap-2"><span className="inline-block w-3 h-3 rounded-full" style={{background:'#eab308'}}></span><span className="text-xs text-[#eab308]">Win 11</span></div>
+            <div className="flex items-center gap-2"><span className="inline-block w-3 h-3 rounded-full" style={{background:'#3b82f6'}}></span><span className="text-xs text-[#3b82f6]">Win 10</span></div>
+            <div className="flex items-center gap-2"><span className="inline-block w-3 h-3 rounded-full" style={{background:'#f97316'}}></span><span className="text-xs text-[#f97316]">Linux</span></div>
           </div>
         </div>
 
@@ -214,40 +329,49 @@ const Dashboard = () => {
             <TicketIcon className="h-5 w-5 text-[#64ffda]" />
           </div>
           <div className="h-48">
-            <Line data={ticketTrendsData} options={chartOptions} />
-          </div>
-          <div className="mt-4 text-sm text-[#8892b0]">
-            Динаміка нових заявок
+            <Line data={ticketTrendsData} options={{
+              ...chartOptions,
+              plugins: {
+                ...chartOptions.plugins,
+                legend: { display: false },
+              }
+            }} />
           </div>
         </div>
       </div>
 
       {/* Нижній ряд */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Статистика ремонтів */}
-        <div className="dark-card rounded-xl p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-semibold text-white">Статистика ремонтів</h3>
-            <WrenchScrewdriverIcon className="h-5 w-5 text-[#64ffda]" />
-          </div>
-          <div className="h-40 flex items-center justify-center">
-            <div className="w-32 h-32">
-              <Doughnut data={repairStatsData} options={{...chartOptions, cutout: '60%'}} />
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Статистика (об'єднані діаграми) */}
+        <div className="dark-card rounded-xl p-6 flex flex-row gap-8 items-center justify-center h-full">
+          {/* Статистика ремонтів */}
+          <div>
+            <h4 className="text-base font-semibold text-[#64ffda] mb-3 text-center">Ремонти</h4>
+            <div className="h-60 flex items-center justify-center">
+              <div className="w-60 h-60">
+                <Doughnut data={repairStatsData} options={doughnutOptions} />
+              </div>
             </div>
           </div>
-          <div className="mt-4 text-sm text-[#8892b0]">
-            За типом обладнання
+          {/* Статистика ПЗ */}
+          <div>
+            <h4 className="text-base font-semibold text-[#64ffda] mb-3 text-center">Заявки за місяцями</h4>
+            <div className="h-60 flex items-center justify-center">
+              <div className="w-60 h-60">
+                <Doughnut data={softwareData} options={doughnutOptions} />
+              </div>
+            </div>
           </div>
         </div>
 
         {/* Останні заявки */}
-        <div className="lg:col-span-2 dark-card rounded-xl p-6">
+        <div className="dark-card rounded-xl p-6">
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-lg font-semibold text-white">Останні заявки</h3>
             <TicketIcon className="h-5 w-5 text-[#64ffda]" />
           </div>
           <div className="space-y-4">
-            {tickets?.slice(0, 4).map((ticket, index) => (
+            {tickets?.slice(0, 3).map((ticket, index) => (
               <div key={ticket.id || index} className="flex items-center justify-between p-3 rounded-lg bg-[#0f0f23] bg-opacity-50">
                 <div className="flex items-center space-x-3">
                   <div className="flex-shrink-0">
@@ -256,7 +380,7 @@ const Dashboard = () => {
                     {ticket.status === 'resolved' && <CheckCircleIcon className="h-5 w-5 text-green-400" />}
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-white">TK-{String(ticket.id).padStart(3, '0')}</p>
+                    <p className="text-sm font-medium text-white">{ticket.workstation_inventory_number || ticket.inventory_number || '—'}</p>
                     <p className="text-xs text-[#8892b0] max-w-[200px] truncate">{ticket.description}</p>
                   </div>
                 </div>

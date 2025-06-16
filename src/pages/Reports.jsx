@@ -20,6 +20,8 @@ import {
   XMarkIcon
 } from '@heroicons/react/24/outline';
 import { useApp } from '../context/AppContext';
+import { FiDownload } from 'react-icons/fi';
+import * as XLSX from 'xlsx';
 
 const Reports = () => {
   const {
@@ -39,9 +41,12 @@ const Reports = () => {
   });
   const [selectedDepartment, setSelectedDepartment] = useState('all');
   const [selectedWorkstation, setSelectedWorkstation] = useState('all');
-  const [reportType, setReportType] = useState('summary');
+  const [reportType, setReportType] = useState('workstations');
   const [showPreview, setShowPreview] = useState(false);
   const [previewData, setPreviewData] = useState(null);
+  const [loadingReport, setLoadingReport] = useState(true);
+  const [data, setData] = useState([]);
+  const [error, setError] = useState(null);
 
   // Статистика
   const [stats, setStats] = useState({
@@ -53,7 +58,8 @@ const Reports = () => {
 
   useEffect(() => {
     calculateStats();
-  }, [workstations, tickets, repairs, allSoftware, dateRange]);
+    prepareData();
+  }, [workstations, tickets, repairs, allSoftware, dateRange, reportType]);
 
   const calculateStats = () => {
     const startDate = new Date(dateRange.start);
@@ -110,6 +116,76 @@ const Reports = () => {
       repairs: repairStats,
       software: softwareStats
     });
+  };
+
+  const prepareData = () => {
+    try {
+      let result = [];
+
+      switch (reportType) {
+        case 'workstations':
+          result = workstations.map(ws => ({
+            'Інвентарний номер': ws.inventory_number,
+            'Відділ': departments.find(d => d.id === ws.department_id)?.name,
+            'Відповідальний': users.find(u => u.id === ws.responsible_id)?.full_name,
+            'Тип': ws.type,
+            'Гриф': ws.grif,
+            'Контакти': ws.contacts,
+            'Програмне забезпечення': ws.software?.map(s => s.name).join(', '),
+            'Створено': new Date(ws.created_at).toLocaleString(),
+            'Оновлено': new Date(ws.updated_at).toLocaleString()
+          }));
+          break;
+
+        case 'repairs':
+          result = repairs.map(repair => ({
+            'АРМ': workstations.find(w => w.id === repair.workstation_id)?.inventory_number,
+            'Опис проблеми': repair.description,
+            'Вирішення': repair.solution,
+            'Статус': repair.status,
+            'Технік': users.find(u => u.id === repair.technician_id)?.full_name,
+            'Дата створення': new Date(repair.created_at).toLocaleString(),
+            'Дата оновлення': new Date(repair.updated_at).toLocaleString()
+          }));
+          break;
+
+        case 'tickets':
+          result = tickets.map(ticket => ({
+            'АРМ': workstations.find(w => w.id === ticket.workstation_id)?.inventory_number,
+            'Тема': ticket.title,
+            'Опис': ticket.description,
+            'Пріоритет': ticket.priority,
+            'Статус': ticket.status,
+            'Призначено': users.find(u => u.id === ticket.assigned_to)?.full_name,
+            'Створив': users.find(u => u.id === ticket.created_by)?.full_name,
+            'Дата створення': new Date(ticket.created_at).toLocaleString(),
+            'Дата оновлення': new Date(ticket.updated_at).toLocaleString()
+          }));
+          break;
+
+        case 'software':
+          result = allSoftware.map(sw => ({
+            'Назва': sw.name,
+            'Версія': sw.version,
+            'Тип ліцензії': sw.license_type,
+            'Дата створення': new Date(sw.created_at).toLocaleString(),
+            'Дата оновлення': new Date(sw.updated_at).toLocaleString()
+          }));
+          break;
+      }
+
+      setData(result);
+      setError(null);
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  const downloadExcel = () => {
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Report');
+    XLSX.writeFile(wb, `${reportType}_${new Date().toISOString().split('T')[0]}.xlsx`);
   };
 
   const reportTypes = [
@@ -555,6 +631,37 @@ const Reports = () => {
     setShowPreview(true);
   };
 
+  const renderTable = () => {
+    if (!data.length) return <p className="text-center text-gray-500 mt-4">Немає даних для відображення</p>;
+
+    return (
+      <div className="overflow-x-auto">
+        <table className="min-w-full bg-dark-bg border border-dark-border">
+          <thead>
+            <tr>
+              {Object.keys(data[0]).map(key => (
+                <th key={key} className="px-6 py-3 border-b border-dark-border text-left text-xs font-medium text-dark-textSecondary uppercase tracking-wider">
+                  {key}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {data.map((item, index) => (
+              <tr key={index} className={index % 2 === 0 ? 'bg-dark-bg' : 'bg-dark-bgSecondary'}>
+                {Object.entries(item).map(([key, value]) => (
+                  <td key={key} className="px-6 py-4 whitespace-nowrap text-sm text-dark-text">
+                    {value || '-'}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  };
+
   if (loading) {
     return (
       <div className="p-6 flex items-center justify-center h-96">
@@ -827,6 +934,41 @@ const Reports = () => {
             </div>
           </div>
         </div>
+      )}
+
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-semibold text-dark-text">Звіти</h1>
+        <button
+          onClick={downloadExcel}
+          disabled={loading || !data.length}
+          className="flex items-center px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 disabled:opacity-50"
+        >
+          <FiDownload className="mr-2" />
+          Завантажити Excel
+        </button>
+      </div>
+
+      <div className="mb-6">
+        <select
+          value={reportType}
+          onChange={(e) => setReportType(e.target.value)}
+          className="w-full md:w-64 bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-white focus:ring-primary-500 focus:border-primary-500"
+        >
+          <option value="workstations">АРМ</option>
+          <option value="repairs">Ремонти</option>
+          <option value="tickets">Заявки</option>
+          <option value="software">Програмне забезпечення</option>
+        </select>
+      </div>
+
+      {loading ? (
+        <div className="text-center py-8">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500 mx-auto"></div>
+        </div>
+      ) : error ? (
+        <div className="text-red-500 text-center py-4">{error}</div>
+      ) : (
+        renderTable()
       )}
     </div>
   );

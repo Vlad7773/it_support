@@ -42,18 +42,34 @@ const Repairs = () => {
 
   const statusLevels = [
     { id: 1, value: 'pending', name: 'Очікує', color: 'bg-blue-500 text-blue-100' },
-    { id: 2, value: 'in_progress', name: 'В процесі', color: 'bg-yellow-500 text-yellow-100' },
-    { id: 3, value: 'completed', name: 'Завершено', color: 'bg-green-500 text-green-100' },
-    { id: 4, value: 'cancelled', name: 'Скасовано', color: 'bg-gray-500 text-gray-100' }
+    { id: 2, value: 'diagnosed', name: 'Продіагностовано', color: 'bg-purple-500 text-purple-100' },
+    { id: 3, value: 'parts_ordered', name: 'Замовлено запчастини', color: 'bg-indigo-500 text-indigo-100' },
+    { id: 4, value: 'in_progress', name: 'В процесі', color: 'bg-yellow-500 text-yellow-100' },
+    { id: 5, value: 'testing', name: 'Тестування', color: 'bg-orange-500 text-orange-100' },
+    { id: 6, value: 'completed', name: 'Завершено', color: 'bg-green-500 text-green-100' },
+    { id: 7, value: 'cancelled', name: 'Скасовано', color: 'bg-gray-500 text-gray-100' }
+  ];
+
+  const repairTypes = [
+    { value: 'hardware_replacement', name: 'Заміна комплектуючих' },
+    { value: 'hardware_repair', name: 'Ремонт комплектуючих' },
+    { value: 'maintenance', name: 'Технічне обслуговування' },
+    { value: 'upgrade', name: 'Оновлення компонентів' },
+    { value: 'other', name: 'Інше' }
   ];
 
   const initialFormData = {
     workstation_id: '',
     workstation_number: 'АРМ-',
     technician_id: '',
+    repair_type: '',
     description: '',
+    diagnosis: '',
+    parts_used: '',
     repair_date: new Date().toISOString().split('T')[0],
+    completion_date: '',
     cost: '',
+    warranty_period: '',
     status: 'pending',
   };
 
@@ -88,11 +104,86 @@ const Repairs = () => {
     }
   };
 
+  // Валідація форми
+  const validateForm = () => {
+    const errors = [];
+    
+    if (!formData.workstation_id) {
+      errors.push('Виберіть АРМ');
+    }
+    
+    if (!formData.technician_id) {
+      errors.push('Виберіть техніка');
+    }
+    
+    if (!formData.repair_type) {
+      errors.push('Виберіть тип ремонту');
+    }
+    
+    if (!formData.description?.trim()) {
+      errors.push('Додайте опис ремонту');
+    }
+    
+    if (formData.status === 'completed') {
+      if (!formData.completion_date) {
+        errors.push('Вкажіть дату завершення ремонту');
+      }
+      if (!formData.diagnosis?.trim()) {
+        errors.push('Додайте діагностичний висновок');
+      }
+    }
+    
+    if (formData.cost) {
+      const cost = parseFloat(formData.cost);
+      if (isNaN(cost) || cost < 0) {
+        errors.push('Вартість повинна бути додатнім числом');
+      }
+    }
+    
+    // Перевірка дат
+    const repairDate = new Date(formData.repair_date);
+    if (formData.completion_date) {
+      const completionDate = new Date(formData.completion_date);
+      if (completionDate < repairDate) {
+        errors.push('Дата завершення не може бути раніше дати початку ремонту');
+      }
+    }
+    
+    return errors;
+  };
+
+  // Функція для показу помилок
+  const showErrors = (errors) => {
+    if (!Array.isArray(errors)) {
+      errors = [errors];
+    }
+    
+    const errorDiv = document.createElement('div');
+    errorDiv.className = 'fixed top-4 right-4 bg-red-600 text-white px-6 py-4 rounded-lg shadow-lg z-50 animate-fadeIn';
+    errorDiv.innerHTML = `
+      <div class="flex items-start gap-3">
+        <svg class="h-5 w-5 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+          <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+        </svg>
+        <div>
+          ${errors.map(err => `<div class="mb-1">${err}</div>`).join('')}
+        </div>
+      </div>
+    `;
+    document.body.appendChild(errorDiv);
+    
+    setTimeout(() => {
+      errorDiv.classList.add('animate-fadeOut');
+      setTimeout(() => errorDiv.remove(), 300);
+    }, 5000);
+  };
+
   const handleAdd = async (e) => {
     e.preventDefault();
     
-    if (!formData.workstation_id || !formData.description || !formData.technician_id) {
-      alert('Будь ласка, заповніть обов\'язкові поля');
+    const errors = validateForm();
+    if (errors.length > 0) {
+      showErrors(errors);
       return;
     }
     
@@ -109,15 +200,16 @@ const Repairs = () => {
       setFormData(initialFormData);
     } catch (err) {
       console.error("Failed to add repair:", err);
-      alert(`Помилка додавання ремонту: ${err.response?.data?.error || err.message}`);
+      showErrors(err.response?.data?.error || err.message);
     }
   };
 
   const handleEdit = async (e) => {
     e.preventDefault();
     
-    if (!formData.workstation_id || !formData.description || !formData.technician_id) {
-      alert('Будь ласка, заповніть обов\'язкові поля');
+    const errors = validateForm();
+    if (errors.length > 0) {
+      showErrors(errors);
       return;
     }
     
@@ -135,7 +227,7 @@ const Repairs = () => {
       setFormData(initialFormData);
     } catch (err) {
       console.error("Failed to edit repair:", err);
-      alert(`Помилка оновлення ремонту: ${err.response?.data?.error || err.message}`);
+      showErrors(err.response?.data?.error || err.message);
     }
   };
 
@@ -202,6 +294,83 @@ const Repairs = () => {
 
     return matchesSearch && matchesStatus && matchesTechnician && matchesWorkstation;
   });
+
+  // Оновлений рендер деталей ремонту
+  const renderRepairDetails = () => {
+    if (!selectedRepair) return null;
+
+    const workstation = workstations.find(w => w.id === selectedRepair.workstation_id);
+    const technician = users.find(u => u.id === selectedRepair.technician_id);
+    const status = statusLevels.find(s => s.value === selectedRepair.status);
+    const repairType = repairTypes.find(t => t.value === selectedRepair.repair_type);
+
+    return (
+      <div className="space-y-6">
+        {/* Основна інформація */}
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <p>
+              <strong>АРМ:</strong> {workstation?.inventory_number}
+            </p>
+            <p>
+              <strong>Технік:</strong> {technician?.full_name}
+            </p>
+            <p>
+              <strong>Тип ремонту:</strong> {repairType?.name}
+            </p>
+            <p>
+              <strong>Статус:</strong> 
+              <span className={`ml-2 px-2 py-1 rounded text-sm ${status?.color}`}>
+                {status?.name}
+              </span>
+            </p>
+          </div>
+          <div className="space-y-2">
+            <p>
+              <strong>Дата початку:</strong> {new Date(selectedRepair.repair_date).toLocaleDateString()}
+            </p>
+            {selectedRepair.completion_date && (
+              <p>
+                <strong>Дата завершення:</strong> {new Date(selectedRepair.completion_date).toLocaleDateString()}
+              </p>
+            )}
+            {selectedRepair.cost && (
+              <p>
+                <strong>Вартість:</strong> {selectedRepair.cost} грн
+              </p>
+            )}
+            {selectedRepair.warranty_period && (
+              <p>
+                <strong>Гарантія:</strong> {selectedRepair.warranty_period}
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* Опис та діагностика */}
+        <div className="space-y-4">
+          <div>
+            <h3 className="font-medium mb-2">Опис проблеми:</h3>
+            <p className="text-gray-300">{selectedRepair.description}</p>
+          </div>
+          
+          {selectedRepair.diagnosis && (
+            <div>
+              <h3 className="font-medium mb-2">Діагностика:</h3>
+              <p className="text-gray-300">{selectedRepair.diagnosis}</p>
+            </div>
+          )}
+          
+          {selectedRepair.parts_used && (
+            <div>
+              <h3 className="font-medium mb-2">Використані запчастини:</h3>
+              <p className="text-gray-300">{selectedRepair.parts_used}</p>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
 
   if (loading) return (
     <div className="p-6 flex items-center justify-center h-96">
@@ -535,86 +704,7 @@ const Repairs = () => {
               </button>
             </div>
             
-            {/* Основна інформація */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-white border-b border-dark-border pb-2">
-                  Загальна інформація
-                </h3>
-                <div className="space-y-3">
-                  <div className="flex justify-between">
-                    <span className="text-gray-400">Номер ремонту:</span>
-                    <span className="text-white font-medium">RP-{String(selectedRepair.id).padStart(3, '0')}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-400">АРМ:</span>
-                    <span className="text-white">{workstations.find(w => w.id === selectedRepair.workstation_id)?.inventory_number || 'N/A'}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-400">Технік:</span>
-                    <span className="text-white">{users.find(u => u.id === selectedRepair.technician_id)?.full_name || 'N/A'}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-400">Відділ:</span>
-                    <span className="text-white">
-                      {(() => {
-                        const workstation = workstations.find(w => w.id === selectedRepair.workstation_id);
-                        const department = departments.find(d => d.id === workstation?.department_id);
-                        return department?.name || 'N/A';
-                      })()}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-400">Дата ремонту:</span>
-                    <span className="text-white">{selectedRepair.repair_date ? new Date(selectedRepair.repair_date).toLocaleDateString('uk-UA') : 'Не вказано'}</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-white border-b border-dark-border pb-2">
-                  Статус та вартість
-                </h3>
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-400">Статус:</span>
-                    <div className="flex items-center gap-2">
-                      {getStatusIcon(selectedRepair.status)}
-                      <span className={`px-2 py-1 rounded text-xs ${statusLevels.find(s => s.value === selectedRepair.status)?.color || 'bg-gray-500 text-gray-100'}`}>
-                        {statusLevels.find(s => s.value === selectedRepair.status)?.name || selectedRepair.status}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-400">Вартість:</span>
-                    <div className="flex items-center gap-2">
-                      <CurrencyDollarIcon className="h-4 w-4 text-green-400" />
-                      <span className="text-white font-medium">
-                        {selectedRepair.cost ? `₴${parseFloat(selectedRepair.cost).toFixed(2)}` : 'Не вказано'}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-400">Дата створення:</span>
-                    <span className="text-white">{new Date(selectedRepair.created_at).toLocaleDateString('uk-UA')}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-400">Останнє оновлення:</span>
-                    <span className="text-white">{new Date(selectedRepair.updated_at).toLocaleDateString('uk-UA')}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Опис ремонтних робіт */}
-            <div className="mb-6">
-              <h3 className="text-lg font-semibold text-white border-b border-dark-border pb-2 mb-4">
-                Опис ремонтних робіт
-              </h3>
-              <div className="bg-dark-bg rounded-lg p-4">
-                <p className="text-white whitespace-pre-wrap">{selectedRepair.description}</p>
-              </div>
-            </div>
+            {renderRepairDetails()}
 
             {/* Технічна інформація АРМ */}
             {(() => {

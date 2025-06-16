@@ -1,58 +1,50 @@
+import Database from 'better-sqlite3';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { openDb, closeDb } from './database.js';
-import bcrypt from 'bcryptjs';
+import bcrypt from 'bcrypt';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+const dbPath = path.join(__dirname, 'database.sqlite');
+
+// Ensure db directory exists
+const dbDir = path.dirname(dbPath);
+if (!fs.existsSync(dbDir)) {
+    fs.mkdirSync(dbDir, { recursive: true });
+}
+
 export async function initializeDatabase() {
-    let db;
+    console.log('Initializing database...');
+    
+    const db = new Database(dbPath);
+    db.pragma('foreign_keys = ON');
+
     try {
-        console.log('Initializing database...');
+        // Read and execute SQL initialization file
+        const sqlInit = fs.readFileSync(path.join(__dirname, 'init_sqlite.sql'), 'utf8');
+        db.exec(sqlInit);
+
+        // Hash passwords for users
+        const saltRounds = 10;
+        const defaultPassword = await bcrypt.hash('password123', saltRounds);
+
+        // Update passwords for existing users
+        const users = db.prepare('SELECT id FROM users').all();
+        const updatePassword = db.prepare('UPDATE users SET password = ? WHERE id = ?');
         
-        // Read SQL initialization script
-        const sqlScriptPath = path.join(__dirname, 'init_sqlite.sql');
-        const sqlScript = fs.readFileSync(sqlScriptPath, 'utf8');
-        
-        // Open database connection
-        db = openDb();
-        
-        // Execute SQL script (створює таблиці та вставляє початкові дані)
-        db.exec(sqlScript);
-        
-        // Тепер оновлюємо паролі користувачів на правильно хешовані
-        console.log('Updating user passwords...');
-        
-        // Створюємо хешовані паролі
-        const adminPassword = await bcrypt.hash('admin123', 10);
-        const userPassword = await bcrypt.hash('user123', 10);
-        
-        // Оновлюємо паролі для всіх користувачів
-        const updatePassword = db.prepare('UPDATE users SET password = ? WHERE username = ?');
-        
-        updatePassword.run(adminPassword, 'admin');
-        updatePassword.run(userPassword, 'petrov.petro');
-        updatePassword.run(userPassword, 'sidorova.maria');
-        updatePassword.run(userPassword, 'kovalenko.olena');
-        updatePassword.run(userPassword, 'melnik.oleg');
-        updatePassword.run(userPassword, 'ivanov.ivan');
-        
+        for (const user of users) {
+            updatePassword.run(defaultPassword, user.id);
+        }
+
         console.log('Database initialized successfully');
-        console.log('Users created:');
-        console.log('  - admin/admin123 (admin role)');
-        console.log('  - petrov.petro/user123 (user role)');
-        console.log('  - sidorova.maria/user123 (user role)');
-        console.log('  - kovalenko.olena/user123 (user role)');
-        console.log('  - melnik.oleg/user123 (user role)');
-        console.log('  - ivanov.ivan/user123 (user role)');
-        
+        return true;
     } catch (error) {
         console.error('Error initializing database:', error);
         throw error;
     } finally {
-        if (db) closeDb();
+        db.close();
     }
 }
 

@@ -50,22 +50,26 @@ const Tickets = () => {
   ];
 
   const ticketTypes = [
-    { id: 1, value: 'printer_issue', name: 'Не працює принтер' },
-    { id: 2, value: 'mouse_issue', name: 'Не працює мишка' },
-    { id: 3, value: 'keyboard_issue', name: 'Не працює клавіатура' },
+    { id: 1, value: 'printer_issue', name: 'Проблеми з принтером' },
+    { id: 2, value: 'mouse_issue', name: 'Проблеми з мишкою' },
+    { id: 3, value: 'keyboard_issue', name: 'Проблеми з клавіатурою' },
     { id: 4, value: 'monitor_issue', name: 'Проблеми з монітором' },
-    { id: 5, value: 'system_startup', name: 'Не запускається АРМ' },
+    { id: 5, value: 'system_startup', name: 'Проблеми із запуском системи' },
     { id: 6, value: 'network_issue', name: 'Проблеми з мережею' },
     { id: 7, value: 'software_issue', name: 'Проблеми з ПЗ' },
-    { id: 8, value: 'hardware_issue', name: 'Несправність обладнання' },
-    { id: 9, value: 'other', name: 'Інше' }
+    { id: 8, value: 'hardware_issue', name: 'Проблеми з апаратним забезпеченням' },
+    { id: 9, value: 'maintenance', name: 'Планове обслуговування' },
+    { id: 10, value: 'other', name: 'Інше' }
   ];
 
   const statusLevels = [
-    { id: 1, value: 'open', name: 'Відкрита' },
-    { id: 2, value: 'in_progress', name: 'В процесі' },
-    { id: 3, value: 'resolved', name: 'Вирішена' },
-    { id: 4, value: 'closed', name: 'Закрита' }
+    { id: 1, value: 'new', name: 'Нова', color: 'bg-blue-500 text-blue-100' },
+    { id: 2, value: 'assigned', name: 'Призначена', color: 'bg-purple-500 text-purple-100' },
+    { id: 3, value: 'in_progress', name: 'В роботі', color: 'bg-yellow-500 text-yellow-100' },
+    { id: 4, value: 'need_repair', name: 'Потребує ремонту', color: 'bg-orange-500 text-orange-100' },
+    { id: 5, value: 'repair_in_progress', name: 'Ремонтується', color: 'bg-indigo-500 text-indigo-100' },
+    { id: 6, value: 'resolved', name: 'Вирішена', color: 'bg-green-500 text-green-100' },
+    { id: 7, value: 'closed', name: 'Закрита', color: 'bg-gray-500 text-gray-100' }
   ];
 
   const initialFormData = {
@@ -74,10 +78,12 @@ const Tickets = () => {
     title: '',
     type: 'other',
     description: '',
-    status: 'open',
+    status: 'new',
     priority: 'medium',
     user_id: '', // Хто створив заявку
-    inventory_number: '', // Додаємо поле для інвентарного номера
+    assigned_to: '', // Кому призначена
+    resolution_notes: '', // Примітки щодо вирішення
+    resolution_date: '', // Дата вирішення
   };
 
   const [formData, setFormData] = useState(initialFormData);
@@ -110,11 +116,74 @@ const Tickets = () => {
     }
   };
 
+  // Валідація форми
+  const validateForm = () => {
+    const errors = [];
+    
+    if (!formData.workstation_id) {
+      errors.push('Виберіть АРМ');
+    }
+    
+    if (!formData.title?.trim()) {
+      errors.push('Додайте заголовок заявки');
+    }
+    
+    if (!formData.description?.trim()) {
+      errors.push('Додайте опис проблеми');
+    }
+    
+    if (!formData.user_id) {
+      errors.push('Виберіть користувача');
+    }
+    
+    if (formData.status === 'resolved' || formData.status === 'closed') {
+      if (!formData.resolution_notes?.trim()) {
+        errors.push('Додайте примітки щодо вирішення');
+      }
+      if (!formData.resolution_date) {
+        errors.push('Вкажіть дату вирішення');
+      }
+    }
+    
+    if (formData.status === 'assigned' && !formData.assigned_to) {
+      errors.push('Виберіть виконавця');
+    }
+    
+    return errors;
+  };
+
+  // Функція для показу помилок
+  const showErrors = (errors) => {
+    if (!Array.isArray(errors)) {
+      errors = [errors];
+    }
+    
+    const errorDiv = document.createElement('div');
+    errorDiv.className = 'fixed top-4 right-4 bg-red-600 text-white px-6 py-4 rounded-lg shadow-lg z-50 animate-fadeIn';
+    errorDiv.innerHTML = `
+      <div class="flex items-start gap-3">
+        <svg class="h-5 w-5 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+          <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+        </svg>
+        <div>
+          ${errors.map(err => `<div class="mb-1">${err}</div>`).join('')}
+        </div>
+      </div>
+    `;
+    document.body.appendChild(errorDiv);
+    
+    setTimeout(() => {
+      errorDiv.classList.add('animate-fadeOut');
+      setTimeout(() => errorDiv.remove(), 300);
+    }, 5000);
+  };
+
   const handleAdd = async (e) => {
     e.preventDefault();
     
-    if (!formData.workstation_id || !formData.title || !formData.description || !formData.user_id) {
-      alert('Будь ласка, заповніть обов\'язкові поля');
+    const errors = validateForm();
+    if (errors.length > 0) {
+      showErrors(errors);
       return;
     }
     
@@ -123,6 +192,7 @@ const Tickets = () => {
         ...formData,
         workstation_id: parseInt(formData.workstation_id, 10),
         user_id: parseInt(formData.user_id, 10),
+        assigned_to: formData.assigned_to ? parseInt(formData.assigned_to, 10) : null,
       };
       await addTicket(payload);
       setShowAddModal(false);
@@ -130,15 +200,16 @@ const Tickets = () => {
       setFormData(initialFormData);
     } catch (err) {
       console.error("Failed to add ticket:", err);
-      alert(`Помилка додавання заявки: ${err.response?.data?.error || err.message}`);
+      showErrors(err.response?.data?.error || err.message);
     }
   };
 
   const handleEdit = async (e) => {
     e.preventDefault();
     
-    if (!formData.workstation_id || !formData.title || !formData.description || !formData.user_id) {
-      alert('Будь ласка, заповніть обов\'язкові поля');
+    const errors = validateForm();
+    if (errors.length > 0) {
+      showErrors(errors);
       return;
     }
     
@@ -147,6 +218,7 @@ const Tickets = () => {
         ...formData,
         workstation_id: parseInt(formData.workstation_id, 10),
         user_id: parseInt(formData.user_id, 10),
+        assigned_to: formData.assigned_to ? parseInt(formData.assigned_to, 10) : null,
       };
       await updateTicket(selectedTicket.id, payload);
       setShowEditModal(false);
@@ -155,7 +227,7 @@ const Tickets = () => {
       setFormData(initialFormData);
     } catch (err) {
       console.error("Failed to edit ticket:", err);
-      alert(`Помилка оновлення заявки: ${err.response?.data?.error || err.message}`);
+      showErrors(err.response?.data?.error || err.message);
     }
   };
 
@@ -180,9 +252,10 @@ const Tickets = () => {
       title: ticket.title || '',
       type: ticket.type || 'other',
       description: ticket.description || '',
-      status: ticket.status || 'open',
+      status: ticket.status || 'new',
       priority: ticket.priority || 'medium',
       user_id: ticket.user_id?.toString() || '',
+      assigned_to: ticket.assigned_to?.toString() || '',
     });
     setShowEditModal(true);
     setActiveTab('main');
@@ -672,125 +745,91 @@ const Tickets = () => {
             </div>
             
             {/* Основна інформація */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-white border-b border-dark-border pb-2">
-                  Загальна інформація
-                </h3>
-                <div className="space-y-3">
-                  <div className="flex justify-between">
-                    <span className="text-gray-400">Номер заявки:</span>
-                    <span className="text-white font-medium">TK-{String(selectedTicket.id).padStart(3, '0')}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-400">АРМ:</span>
-                    <span className="text-white">{workstations.find(w => w.id === selectedTicket.workstation_id)?.inventory_number || 'N/A'}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-400">Користувач:</span>
-                    <span className="text-white">{users.find(u => u.id === selectedTicket.user_id)?.full_name || 'N/A'}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-400">Відділ:</span>
-                    <span className="text-white">
-                      {(() => {
-                        const workstation = workstations.find(w => w.id === selectedTicket.workstation_id);
-                        const department = departments.find(d => d.id === workstation?.department_id);
-                        return department?.name || 'N/A';
-                      })()}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-400">IP адреса АРМ:</span>
-                    <span className="text-white font-mono">{workstations.find(w => w.id === selectedTicket.workstation_id)?.ip_address || 'N/A'}</span>
-                  </div>
-                </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <p>
+                  <strong>АРМ:</strong> {workstations.find(w => w.id === selectedTicket.workstation_id)?.inventory_number}
+                </p>
+                <p>
+                  <strong>Заявник:</strong> {users.find(u => u.id === selectedTicket.user_id)?.full_name}
+                </p>
+                {selectedTicket.assigned_to && (
+                  <p>
+                    <strong>Виконавець:</strong> {users.find(u => u.id === selectedTicket.assigned_to)?.full_name}
+                  </p>
+                )}
+                <p>
+                  <strong>Тип проблеми:</strong> {ticketTypes.find(t => t.value === selectedTicket.type)?.name}
+                </p>
               </div>
-
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-white border-b border-dark-border pb-2">
-                  Статус та пріоритет
-                </h3>
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-400">Статус:</span>
-                    <div className="flex items-center gap-2">
-                      {getStatusIcon(selectedTicket.status)}
-                      <span className={`px-2 py-1 rounded text-xs ${statusLevels.find(s => s.value === selectedTicket.status)?.color || 'bg-gray-500 text-gray-100'}`}>
-                        {statusLevels.find(s => s.value === selectedTicket.status)?.name || selectedTicket.status}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-400">Пріоритет:</span>
-                    <div className="flex items-center gap-2">
-                      {getPriorityIcon(selectedTicket.priority)}
-                      <span className={`px-2 py-1 rounded text-xs ${priorityLevels.find(p => p.value === selectedTicket.priority)?.color || 'bg-gray-500 text-gray-100'}`}>
-                        {priorityLevels.find(p => p.value === selectedTicket.priority)?.name || selectedTicket.priority}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-400">Дата створення:</span>
-                    <span className="text-white">{new Date(selectedTicket.created_at).toLocaleDateString('uk-UA')}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-400">Останнє оновлення:</span>
-                    <span className="text-white">{new Date(selectedTicket.updated_at).toLocaleDateString('uk-UA')}</span>
-                  </div>
-                </div>
+              <div className="space-y-2">
+                <p>
+                  <strong>Статус:</strong> 
+                  <span className={`ml-2 px-2 py-1 rounded text-sm ${statusLevels.find(s => s.value === selectedTicket.status)?.color}`}>
+                    {statusLevels.find(s => s.value === selectedTicket.status)?.name}
+                  </span>
+                </p>
+                <p>
+                  <strong>Пріоритет:</strong> 
+                  <span className={`ml-2 px-2 py-1 rounded text-sm ${
+                    priorityLevels.find(p => p.value === selectedTicket.priority)?.color
+                  }`}>
+                    {priorityLevels.find(p => p.value === selectedTicket.priority)?.name}
+                  </span>
+                </p>
+                <p>
+                  <strong>Створено:</strong> {new Date(selectedTicket.created_at).toLocaleDateString()}
+                </p>
+                {selectedTicket.resolution_date && (
+                  <p>
+                    <strong>Вирішено:</strong> {new Date(selectedTicket.resolution_date).toLocaleDateString()}
+                  </p>
+                )}
               </div>
             </div>
 
-            {/* Опис проблеми */}
-            <div className="mb-6">
-              <h3 className="text-lg font-semibold text-white border-b border-dark-border pb-2 mb-4">
-                Опис проблеми
-              </h3>
-              <div className="bg-dark-bg rounded-lg p-4">
-                <p className="text-white whitespace-pre-wrap">{selectedTicket.description}</p>
+            {/* Опис та вирішення */}
+            <div className="space-y-4">
+              <div>
+                <h3 className="font-medium mb-2">Опис проблеми:</h3>
+                <p className="text-gray-300">{selectedTicket.description}</p>
               </div>
-            </div>
-
-            {/* Технічна інформація АРМ */}
-            {(() => {
-              const workstation = workstations.find(w => w.id === selectedTicket.workstation_id);
-              if (!workstation) return null;
               
-              return (
-                <div className="mb-6">
-                  <h3 className="text-lg font-semibold text-white border-b border-dark-border pb-2 mb-4">
-                    Технічна інформація АРМ
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    <div className="bg-dark-bg rounded-lg p-4">
-                      <div className="text-gray-400 text-sm">IP адреса</div>
-                      <div className="text-white font-medium font-mono">{workstation.ip_address || 'Не вказано'}</div>
+              {selectedTicket.resolution_notes && (
+                <div>
+                  <h3 className="font-medium mb-2">Примітки щодо вирішення:</h3>
+                  <p className="text-gray-300">{selectedTicket.resolution_notes}</p>
+                </div>
+              )}
+            </div>
+
+            {/* Пов'язані ремонти */}
+            {selectedTicket.status === 'repair_in_progress' && (
+              <div>
+                <h3 className="font-medium mb-2">Пов'язаний ремонт:</h3>
+                {repairs.filter(r => r.workstation_id === selectedTicket.workstation_id).map(repair => (
+                  <div key={repair.id} className="bg-gray-800 rounded-lg p-4">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <h4 className="font-medium">{repair.repair_type}</h4>
+                        <p className="text-sm text-gray-400">{repair.description}</p>
+                      </div>
+                      <span className={`px-2 py-1 rounded text-sm ${
+                        repair.status === 'completed' ? 'bg-green-500 text-green-100' :
+                        repair.status === 'in_progress' ? 'bg-yellow-500 text-yellow-100' :
+                        'bg-gray-500 text-gray-100'
+                      }`}>
+                        {repair.status}
+                      </span>
                     </div>
-                    <div className="bg-dark-bg rounded-lg p-4">
-                      <div className="text-gray-400 text-sm">MAC адреса</div>
-                      <div className="text-white font-medium font-mono">{workstation.mac_address || 'Не вказано'}</div>
-                    </div>
-                    <div className="bg-dark-bg rounded-lg p-4">
-                      <div className="text-gray-400 text-sm">Операційна система</div>
-                      <div className="text-white font-medium">{workstation.os_name || 'Не вказано'}</div>
-                    </div>
-                    <div className="bg-dark-bg rounded-lg p-4">
-                      <div className="text-gray-400 text-sm">Процесор</div>
-                      <div className="text-white font-medium">{workstation.processor || 'Не вказано'}</div>
-                    </div>
-                    <div className="bg-dark-bg rounded-lg p-4">
-                      <div className="text-gray-400 text-sm">ОЗУ</div>
-                      <div className="text-white font-medium">{workstation.ram || 'Не вказано'}</div>
-                    </div>
-                    <div className="bg-dark-bg rounded-lg p-4">
-                      <div className="text-gray-400 text-sm">Накопичувач</div>
-                      <div className="text-white font-medium">{workstation.storage || 'Не вказано'}</div>
+                    <div className="mt-2 text-sm text-gray-400">
+                      <p>Технік: {users.find(u => u.id === repair.technician_id)?.full_name}</p>
+                      <p>Дата: {new Date(repair.repair_date).toLocaleDateString()}</p>
                     </div>
                   </div>
-                </div>
-              );
-            })()}
+                ))}
+              </div>
+            )}
 
             {/* Дії */}
             <div className="flex justify-between items-center">

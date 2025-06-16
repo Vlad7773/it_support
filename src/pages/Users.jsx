@@ -18,68 +18,81 @@ const Users = () => {
   const [filterRole, setFilterRole] = useState('all');
   const [filterDepartment, setFilterDepartment] = useState('all');
 
-  const [newUser, setNewUser] = useState({
+  const userRoles = [
+    { value: 'admin', name: 'Адміністратор', color: 'bg-primary-500 text-white' },
+    { value: 'manager', name: 'Керівник', color: 'bg-purple-500 text-white' },
+    { value: 'technician', name: 'Технік', color: 'bg-blue-500 text-white' },
+    { value: 'user', name: 'Користувач', color: 'bg-gray-500 text-white' }
+  ];
+
+  const initialUserData = {
     username: '',
-    full_name: '', // Змінено name на full_name
+    full_name: '',
     role: 'user',
     department_id: '',
     email: '',
     password: '',
-  });
+    phone: '',
+    position: '',
+    notes: '',
+  };
+
+  const [newUser, setNewUser] = useState(initialUserData);
 
   const handleAddUser = async (e) => {
     e.preventDefault();
-    if (!newUser.department_id) {
-      alert('Будь ласка, виберіть відділ.');
+    
+    const errors = validateForm(newUser);
+    if (errors.length > 0) {
+      showErrors(errors);
       return;
     }
+    
     try {
       await addUser(newUser);
       setShowAddModal(false);
-      setNewUser({
-        username: '',
-        full_name: '', // Змінено name на full_name
-        role: 'user',
-        department_id: '',
-        email: '',
-        password: '',
-      });
-    } catch (error) {
-      console.error("Failed to add user:", error);
-      alert("Не вдалося додати користувача: " + (error.response?.data?.error || error.message)); // Використовуємо error.response?.data?.error
+      setNewUser(initialUserData);
+    } catch (err) {
+      console.error("Failed to add user:", err);
+      showErrors(err.response?.data?.error || err.message);
     }
   };
 
   const handleEditUser = async (e) => {
     e.preventDefault();
-    if (!selectedUser.department_id) {
-        alert('Будь ласка, виберіть відділ для користувача.');
-        return;
+    
+    const errors = validateForm(selectedUser);
+    if (errors.length > 0) {
+      showErrors(errors);
+      return;
     }
+    
     try {
       const userToUpdate = { ...selectedUser };
-      // Переконуємося, що поле називається full_name, якщо воно є в selectedUser.name
       if (userToUpdate.hasOwnProperty('name') && !userToUpdate.hasOwnProperty('full_name')) {
         userToUpdate.full_name = userToUpdate.name;
         delete userToUpdate.name;
       }
-      delete userToUpdate.department; 
-      await updateUser(userToUpdate.id, userToUpdate); // Передаємо ID окремо
+      delete userToUpdate.department;
+      await updateUser(userToUpdate.id, userToUpdate);
       setShowEditModal(false);
-      setSelectedUser(null); // Очищаємо selectedUser
-    } catch (error) {
-      console.error("Failed to edit user:", error);
-      alert("Не вдалося редагувати користувача: " + (error.response?.data?.error || error.message)); // Використовуємо error.response?.data?.error
+      setSelectedUser(null);
+    } catch (err) {
+      console.error("Failed to edit user:", err);
+      showErrors(err.response?.data?.error || err.message);
     }
   };
 
   const handleDeleteUser = async (id) => {
-    if (window.confirm('Ви впевнені, що хочете видалити цього користувача?')) {
+    const user = users.find(u => u.id === id);
+    if (!user) return;
+    
+    if (window.confirm(`Ви впевнені, що хочете видалити користувача "${user.full_name}"?`)) {
       try {
         await deleteUser(id);
-      } catch (error) {
-        console.error("Failed to delete user:", error);
-        alert("Не вдалося видалити користувача: " + (error.response?.data?.message || error.message));
+      } catch (err) {
+        console.error("Failed to delete user:", err);
+        showErrors(err.response?.data?.error || err.message);
       }
     }
   };
@@ -93,6 +106,88 @@ const Users = () => {
     const matchesDepartment = filterDepartment === 'all' || user.department_id === parseInt(filterDepartment);
     return matchesSearch && matchesRole && matchesDepartment;
   });
+
+  // Валідація форми
+  const validateForm = (data) => {
+    const errors = [];
+    
+    // Перевірка логіну
+    if (!data.username?.trim()) {
+      errors.push('Введіть логін користувача');
+    } else if (data.username.length < 3) {
+      errors.push('Логін повинен містити мінімум 3 символи');
+    } else {
+      // Перевірка на унікальність логіну
+      const existingUser = users.find(u => 
+        u.username.toLowerCase() === data.username.toLowerCase() &&
+        u.id !== selectedUser?.id
+      );
+      if (existingUser) {
+        errors.push(`Користувач з логіном "${data.username}" вже існує`);
+      }
+    }
+    
+    // Перевірка повного імені
+    if (!data.full_name?.trim()) {
+      errors.push('Введіть повне ім\'я користувача');
+    }
+    
+    // Перевірка відділу
+    if (!data.department_id) {
+      errors.push('Виберіть відділ');
+    }
+    
+    // Перевірка email
+    if (data.email?.trim()) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(data.email)) {
+        errors.push('Невірний формат email');
+      }
+    }
+    
+    // Перевірка телефону
+    if (data.phone?.trim()) {
+      const phoneRegex = /^\+380\d{9}$/;
+      if (!phoneRegex.test(data.phone)) {
+        errors.push('Невірний формат телефону (+380XXXXXXXXX)');
+      }
+    }
+    
+    // Перевірка паролю при створенні нового користувача
+    if (!selectedUser && !data.password?.trim()) {
+      errors.push('Введіть пароль');
+    } else if (data.password?.trim() && data.password.length < 8) {
+      errors.push('Пароль повинен містити мінімум 8 символів');
+    }
+    
+    return errors;
+  };
+
+  // Функція для показу помилок
+  const showErrors = (errors) => {
+    if (!Array.isArray(errors)) {
+      errors = [errors];
+    }
+    
+    const errorDiv = document.createElement('div');
+    errorDiv.className = 'fixed top-4 right-4 bg-red-600 text-white px-6 py-4 rounded-lg shadow-lg z-50 animate-fadeIn';
+    errorDiv.innerHTML = `
+      <div class="flex items-start gap-3">
+        <svg class="h-5 w-5 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+          <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+        </svg>
+        <div>
+          ${errors.map(err => `<div class="mb-1">${err}</div>`).join('')}
+        </div>
+      </div>
+    `;
+    document.body.appendChild(errorDiv);
+    
+    setTimeout(() => {
+      errorDiv.classList.add('animate-fadeOut');
+      setTimeout(() => errorDiv.remove(), 300);
+    }, 5000);
+  };
 
   if (loading) return <p className="text-white">Завантаження користувачів...</p>;
   if (error && !users.length) return <p className="text-red-500">Помилка завантаження користувачів: {error}</p>;

@@ -12,7 +12,9 @@ import {
   BuildingOfficeIcon,
   UserIcon,
   CalendarIcon,
-  XMarkIcon
+  XMarkIcon,
+  WrenchScrewdriverIcon,
+  CpuChipIcon
 } from '@heroicons/react/24/outline';
 import { useApp } from '../context/AppContext';
 import { useLocation } from 'react-router-dom';
@@ -30,6 +32,8 @@ const Workstations = () => {
     workstationStatuses,
     grifLevels,
     allSoftware,
+    selectedWorkstationSoftware,
+    fetchSoftwareForWorkstation,
     tickets,
     repairs,
   } = useApp();
@@ -67,6 +71,14 @@ const Workstations = () => {
 
   const [formData, setFormData] = useState(initialFormData);
   const [localWorkstations, setLocalWorkstations] = useState([]);
+
+  // Додаємо стан для відстеження завантаження ПЗ
+  const [loadingSoftware, setLoadingSoftware] = useState(false);
+  const [softwareError, setSoftwareError] = useState(null);
+  
+  // Додаємо стан для фільтрації ремонтів та ПЗ
+  const [workstationRepairs, setWorkstationRepairs] = useState([]);
+  const [workstationTickets, setWorkstationTickets] = useState([]);
 
   useEffect(() => {
     if (contextWorkstations) {
@@ -109,6 +121,73 @@ const Workstations = () => {
     return macRegex.test(mac);
   };
 
+  // Валідація форми
+  const validateForm = () => {
+    const errors = [];
+    
+    // Обов'язкові поля
+    if (!formData.inventory_number?.trim()) {
+      errors.push('Інвентарний номер обов\'язковий');
+    } else if (!formData.inventory_number.startsWith('АРМ-')) {
+      errors.push('Інвентарний номер повинен починатися з "АРМ-"');
+    }
+    
+    if (!formData.department_id) {
+      errors.push('Виберіть відділ');
+    }
+    
+    if (!formData.os_name?.trim()) {
+      errors.push('Вкажіть операційну систему');
+    }
+    
+    // IP адреса (якщо вказана)
+    if (formData.ip_address?.trim()) {
+      if (!validateIP(formData.ip_address)) {
+        errors.push('Невірний формат IP адреси (приклад: 192.168.1.100)');
+      }
+      
+      // Перевірка на дублікати IP
+      const duplicateIP = localWorkstations.find(w => 
+        w.ip_address === formData.ip_address && 
+        w.id !== selectedWorkstation?.id
+      );
+      if (duplicateIP) {
+        errors.push(`IP адреса ${formData.ip_address} вже використовується на АРМ ${duplicateIP.inventory_number}`);
+      }
+    }
+    
+    // MAC адреса (якщо вказана)
+    if (formData.mac_address?.trim()) {
+      if (!validateMAC(formData.mac_address)) {
+        errors.push('Невірний формат MAC адреси (приклад: 00:1A:2B:3C:4D:5E)');
+      }
+      
+      // Перевірка на дублікати MAC
+      const duplicateMAC = localWorkstations.find(w => 
+        w.mac_address === formData.mac_address && 
+        w.id !== selectedWorkstation?.id
+      );
+      if (duplicateMAC) {
+        errors.push(`MAC адреса ${formData.mac_address} вже використовується на АРМ ${duplicateMAC.inventory_number}`);
+      }
+    }
+    
+    // Контакти
+    if (formData.contacts?.trim() && !formData.contacts.startsWith('+380')) {
+      errors.push('Номер телефону повинен починатися з "+380"');
+    }
+    
+    // RAM
+    if (formData.ram) {
+      const ramValue = parseInt(formData.ram, 10);
+      if (isNaN(ramValue) || ramValue < 1 || ramValue > 128) {
+        errors.push('Об\'єм RAM повинен бути від 1 до 128 GB');
+      }
+    }
+    
+    return errors;
+  };
+
   // Покращена валідація IP з підказками
   const handleIPChange = (value) => {
     // Видаляємо всі символи крім цифр і крапок
@@ -147,8 +226,8 @@ const Workstations = () => {
     let formatted = value.replace(/[^0-9A-Fa-f]/g, '').toUpperCase();
     
     // Додаємо двокрапки автоматично
-    if (formatted.length > 2) {
-      formatted = formatted.match(/.{1,2}/g).join(':');
+    if (formatted.length > 0) {
+      formatted = formatted.match(/.{1,2}/g)?.join(':') || formatted;
     }
     
     // Обмежуємо довжину
@@ -160,41 +239,37 @@ const Workstations = () => {
   };
 
   // Функція для показу помилок
-  const showError = (message) => {
-    // Створюємо красиве спливаюче вікно
+  const showErrors = (errors) => {
+    if (!Array.isArray(errors)) {
+      errors = [errors];
+    }
+    
     const errorDiv = document.createElement('div');
     errorDiv.className = 'fixed top-4 right-4 bg-red-600 text-white px-6 py-4 rounded-lg shadow-lg z-50 animate-fadeIn';
     errorDiv.innerHTML = `
-      <div class="flex items-center gap-3">
-        <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+      <div class="flex items-start gap-3">
+        <svg class="h-5 w-5 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
           <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
         </svg>
-        <span>${message}</span>
+        <div>
+          ${errors.map(err => `<div class="mb-1">${err}</div>`).join('')}
+        </div>
       </div>
     `;
     document.body.appendChild(errorDiv);
     
     setTimeout(() => {
-      errorDiv.remove();
-    }, 4000);
+      errorDiv.classList.add('animate-fadeOut');
+      setTimeout(() => errorDiv.remove(), 300);
+    }, 5000);
   };
 
   const handleAdd = async (e) => {
     e.preventDefault();
     
-    // Валідація
-    if (!formData.inventory_number || !formData.os_name || !formData.department_id) {
-      showError('Будь ласка, заповніть обов\'язкові поля');
-      return;
-    }
-    
-    if (formData.ip_address && !validateIP(formData.ip_address)) {
-      showError('Невірний формат IP адреси. Приклад: 192.168.1.100');
-      return;
-    }
-    
-    if (formData.mac_address && !validateMAC(formData.mac_address)) {
-      showError('Невірний формат MAC адреси. Приклад: 00:1A:2B:3C:4D:5E');
+    const errors = validateForm();
+    if (errors.length > 0) {
+      showErrors(errors);
       return;
     }
     
@@ -203,6 +278,7 @@ const Workstations = () => {
         ...formData,
         department_id: parseInt(formData.department_id, 10) || null,
         responsible_id: formData.responsible_id ? parseInt(formData.responsible_id, 10) : null,
+        ram: parseInt(formData.ram, 10) || null,
       };
       await addWorkstation(payload);
       setShowAddModal(false);
@@ -210,25 +286,16 @@ const Workstations = () => {
       setFormData(initialFormData);
     } catch (err) {
       console.error("Failed to add workstation:", err);
-      alert(`Помилка додавання АРМ: ${err.response?.data?.error || err.message}`);
+      showErrors(err.response?.data?.error || err.message);
     }
   };
 
   const handleEdit = async (e) => {
     e.preventDefault();
     
-    if (!formData.inventory_number || !formData.os_name || !formData.department_id) {
-      alert('Будь ласка, заповніть обов\'язкові поля');
-      return;
-    }
-    
-    if (formData.ip_address && !validateIP(formData.ip_address)) {
-      alert('Невірний формат IP адреси');
-      return;
-    }
-    
-    if (formData.mac_address && !validateMAC(formData.mac_address)) {
-      alert('Невірний формат MAC адреси');
+    const errors = validateForm();
+    if (errors.length > 0) {
+      showErrors(errors);
       return;
     }
     
@@ -237,6 +304,7 @@ const Workstations = () => {
         ...formData,
         department_id: parseInt(formData.department_id, 10) || null,
         responsible_id: formData.responsible_id ? parseInt(formData.responsible_id, 10) : null,
+        ram: parseInt(formData.ram, 10) || null,
       };
       await updateWorkstation(selectedWorkstation.id, payload);
       setShowEditModal(false);
@@ -245,7 +313,7 @@ const Workstations = () => {
       setFormData(initialFormData);
     } catch (err) {
       console.error("Failed to edit workstation:", err);
-      alert(`Помилка оновлення АРМ: ${err.response?.data?.error || err.message}`);
+      showErrors(err.response?.data?.error || err.message);
     }
   };
 
@@ -294,6 +362,8 @@ const Workstations = () => {
   const openDetailsModal = (workstation) => {
     setSelectedWorkstation(workstation);
     setShowDetailsModal(true);
+    setActiveTab('main');
+    loadWorkstationData(workstation);
   };
 
   const filteredWorkstations = (localWorkstations || []).filter(ws => {
@@ -314,6 +384,200 @@ const Workstations = () => {
 
     return matchesSearch && matchesDepartment && matchesGrif && matchesResponsible;
   });
+
+  // Функція для завантаження даних конкретного АРМ
+  const loadWorkstationData = async (workstation) => {
+    try {
+      // Завантажуємо ПЗ
+      setLoadingSoftware(true);
+      await fetchSoftwareForWorkstation(workstation.id);
+      
+      // Фільтруємо ремонти для цього АРМ
+      const filteredRepairs = repairs.filter(r => r.workstation_id === workstation.id);
+      setWorkstationRepairs(filteredRepairs);
+      
+      // Фільтруємо заявки для цього АРМ
+      const filteredTickets = tickets.filter(t => t.workstation_id === workstation.id);
+      setWorkstationTickets(filteredTickets);
+      
+      setSoftwareError(null);
+    } catch (err) {
+      console.error('Error loading workstation data:', err);
+      setSoftwareError('Помилка завантаження даних АРМ');
+    } finally {
+      setLoadingSoftware(false);
+    }
+  };
+
+  // Функція для зміни вкладки
+  const handleTabChange = (tab) => {
+    setActiveTab(tab);
+    if (selectedWorkstation && tab === 'software') {
+      loadWorkstationData(selectedWorkstation);
+    }
+  };
+
+  // Компонент для відображення вкладок
+  const TabButton = ({ tab, label, icon: Icon }) => (
+    <button
+      className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors
+        ${activeTab === tab 
+          ? 'bg-blue-100 text-blue-700' 
+          : 'text-gray-500 hover:bg-gray-100'}`}
+      onClick={() => handleTabChange(tab)}
+    >
+      <Icon className="h-5 w-5" />
+      {label}
+    </button>
+  );
+
+  // Оновлений рендер деталей АРМ
+  const renderWorkstationDetails = () => {
+    if (!selectedWorkstation) return null;
+
+    return (
+      <div className="space-y-4">
+        {/* Вкладки */}
+        <div className="flex gap-2 border-b pb-2">
+          <TabButton 
+            tab="main" 
+            label="Основне" 
+            icon={ComputerDesktopIcon} 
+          />
+          <TabButton 
+            tab="software" 
+            label="Програмне забезпечення" 
+            icon={CpuChipIcon} 
+          />
+          <TabButton 
+            tab="repairs" 
+            label="Ремонти" 
+            icon={WrenchScrewdriverIcon} 
+          />
+        </div>
+
+        {/* Контент вкладок */}
+        <div className="mt-4">
+          {activeTab === 'main' && (
+            <div className="grid grid-cols-2 gap-4">
+              {/* Основна інформація */}
+              <div className="space-y-2">
+                <p><strong>Інв. номер:</strong> {selectedWorkstation.inventory_number}</p>
+                <p><strong>IP адреса:</strong> {selectedWorkstation.ip_address}</p>
+                <p><strong>MAC адреса:</strong> {selectedWorkstation.mac_address}</p>
+                <p><strong>Тип:</strong> {selectedWorkstation.type}</p>
+                <p><strong>ОС:</strong> {selectedWorkstation.os_name}</p>
+              </div>
+              <div className="space-y-2">
+                <p><strong>Відділ:</strong> {departments.find(d => d.id === selectedWorkstation.department_id)?.name}</p>
+                <p><strong>Відповідальний:</strong> {users.find(u => u.id === selectedWorkstation.responsible_id)?.full_name}</p>
+                <p><strong>Гриф:</strong> {selectedWorkstation.grif}</p>
+                <p><strong>Контакти:</strong> {selectedWorkstation.contacts}</p>
+              </div>
+              {/* Характеристики */}
+              <div className="col-span-2 mt-4">
+                <h3 className="font-medium mb-2">Характеристики:</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <p><strong>Процесор:</strong> {selectedWorkstation.processor}</p>
+                  <p><strong>RAM:</strong> {selectedWorkstation.ram} GB</p>
+                  <p><strong>Накопичувач:</strong> {selectedWorkstation.storage}</p>
+                  <p><strong>Монітор:</strong> {selectedWorkstation.monitor}</p>
+                  <p><strong>Мережа:</strong> {selectedWorkstation.network}</p>
+                  <p><strong>Периферія:</strong> {[
+                    selectedWorkstation.keyboard && 'Клавіатура',
+                    selectedWorkstation.mouse && 'Миша'
+                  ].filter(Boolean).join(', ') || 'Немає'}</p>
+                </div>
+              </div>
+              {/* Примітки */}
+              {selectedWorkstation.notes && (
+                <div className="col-span-2 mt-4">
+                  <h3 className="font-medium mb-2">Примітки:</h3>
+                  <p className="text-gray-600">{selectedWorkstation.notes}</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'software' && (
+            <div className="space-y-4">
+              {loadingSoftware ? (
+                <div className="flex justify-center items-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-700"></div>
+                </div>
+              ) : softwareError ? (
+                <div className="text-red-600 text-center py-4">{softwareError}</div>
+              ) : (
+                <>
+                  <h3 className="font-medium">Встановлене ПЗ:</h3>
+                  {selectedWorkstationSoftware.length === 0 ? (
+                    <p className="text-gray-500 text-center py-4">ПЗ не знайдено</p>
+                  ) : (
+                    <div className="grid gap-4">
+                      {selectedWorkstationSoftware.map(software => (
+                        <div key={software.id} className="bg-gray-50 p-4 rounded-lg">
+                          <h4 className="font-medium">{software.name}</h4>
+                          <p className="text-sm text-gray-600">Версія: {software.version}</p>
+                          <p className="text-sm text-gray-600">Встановлено: {new Date(software.installation_date).toLocaleDateString()}</p>
+                          {software.license_key && (
+                            <p className="text-sm text-gray-600">Ліцензія: {software.license_key}</p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'repairs' && (
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <h3 className="font-medium">Історія ремонтів:</h3>
+              </div>
+              {workstationRepairs.length === 0 ? (
+                <p className="text-gray-500 text-center py-4">Ремонтів не знайдено</p>
+              ) : (
+                <div className="grid gap-4">
+                  {workstationRepairs.map(repair => (
+                    <div key={repair.id} className="bg-gray-50 p-4 rounded-lg">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h4 className="font-medium">{repair.repair_type}</h4>
+                          <p className="text-sm text-gray-600">{repair.description}</p>
+                        </div>
+                        <span className={`px-2 py-1 rounded text-sm ${
+                          repair.status === 'completed' ? 'bg-green-100 text-green-800' :
+                          repair.status === 'in_progress' ? 'bg-yellow-100 text-yellow-800' :
+                          'bg-gray-100 text-gray-800'
+                        }`}>
+                          {repair.status}
+                        </span>
+                      </div>
+                      <div className="mt-2 text-sm text-gray-600">
+                        <p>Технік: {users.find(u => u.id === repair.technician_id)?.full_name}</p>
+                        <p>Дата: {new Date(repair.repair_date).toLocaleDateString()}</p>
+                        {repair.cost && <p>Вартість: {repair.cost} грн</p>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  // Оновлена функція для фільтрації користувачів при виборі відповідального
+  const getAvailableResponsibles = (departmentId) => {
+    return users.filter(user => 
+      // Прибираємо перевірку на відділ
+      user.role === 'technician' || user.role === 'admin'
+    );
+  };
 
   if (loading) return (
     <div className="p-6 flex items-center justify-center h-96">
@@ -530,62 +794,49 @@ const Workstations = () => {
               </button>
             </div>
             
-            <form onSubmit={showAddModal ? handleAdd : handleEdit}>
+            <form onSubmit={showEditModal ? handleEdit : handleAdd} className="space-y-4">
               {/* Основні дані */}
               {activeTab === 'main' && (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-7">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-[#8892b0] mb-2">
-                      Інвентарний номер <span className="text-red-400">*</span>
-                    </label>
-                    <input 
-                      type="text" 
-                      value={formData.inventory_number} 
-                      onChange={(e) => setFormData({...formData, inventory_number: e.target.value})} 
-                      className="modern-input" 
-                      required 
-                      placeholder="АРМ-001"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-[#8892b0] mb-2">
-                      Підрозділ <span className="text-red-400">*</span>
-                    </label>
-                    <input 
-                      type="text" 
-                      list="department-list"
-                      value={departments.find(d => d.id === parseInt(formData.department_id))?.name || formData.department_id}
-                      onChange={(e) => {
-                        const dept = departments.find(d => d.name === e.target.value);
-                        setFormData({...formData, department_id: dept ? dept.id : e.target.value});
-                      }}
-                      className="modern-input" 
+                    <label className="block text-dark-textSecondary mb-2">Інвентарний номер</label>
+                    <input
+                      type="text"
+                      value={formData.inventory_number}
+                      onChange={(e) => setFormData({...formData, inventory_number: e.target.value})}
+                      className="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-white focus:ring-primary-500 focus:border-primary-500"
                       required
-                      placeholder="Виберіть або введіть підрозділ"
                     />
-                    <datalist id="department-list">
-                      {departments.map(dept => <option key={dept.id} value={dept.name} />)}
-                    </datalist>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-[#8892b0] mb-2">Відповідальний</label>
-                    <input 
-                      type="text" 
-                      list="user-list"
-                      value={users.find(u => u.id === parseInt(formData.responsible_id))?.full_name || formData.responsible_id}
-                      onChange={(e) => {
-                        const user = users.find(u => u.full_name === e.target.value);
-                        setFormData({...formData, responsible_id: user ? user.id : e.target.value});
-                      }}
-                      className="modern-input"
-                      placeholder="Виберіть або введіть відповідального"
-                    />
-                    <datalist id="user-list">
-                      {users.map(user => <option key={user.id} value={user.full_name} />)}
-                    </datalist>
+                    <label className="block text-dark-textSecondary mb-2">Відділ</label>
+                    <select
+                      value={formData.department_id}
+                      onChange={(e) => setFormData({...formData, department_id: e.target.value})}
+                      className="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-white focus:ring-primary-500 focus:border-primary-500"
+                      required
+                    >
+                      <option value="">Виберіть відділ</option>
+                      {departments.map(dept => (
+                        <option key={dept.id} value={dept.id}>{dept.name}</option>
+                      ))}
+                    </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-[#8892b0] mb-2">Гриф</label>
+                    <label className="block text-dark-textSecondary mb-2">Відповідальний</label>
+                    <select
+                      value={formData.responsible_id || ''}
+                      onChange={(e) => setFormData({...formData, responsible_id: e.target.value})}
+                      className="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-white focus:ring-primary-500 focus:border-primary-500"
+                    >
+                      <option value="">Виберіть відповідального</option>
+                      {getAvailableResponsibles(formData.department_id).map(user => (
+                        <option key={user.id} value={user.id}>{user.full_name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-dark-textSecondary mb-2">Гриф</label>
                     <select 
                       value={formData.grif} 
                       onChange={(e) => setFormData({...formData, grif: e.target.value})} 
@@ -595,7 +846,7 @@ const Workstations = () => {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-[#8892b0] mb-2">Тип пристрою</label>
+                    <label className="block text-dark-textSecondary mb-2">Тип пристрою</label>
                     <select 
                       value={formData.type} 
                       onChange={(e) => setFormData({...formData, type: e.target.value})} 
@@ -608,7 +859,7 @@ const Workstations = () => {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-[#8892b0] mb-2">Контакти</label>
+                    <label className="block text-dark-textSecondary mb-2">Контакти</label>
                     <input 
                       type="text" 
                       value={formData.contacts} 
@@ -810,7 +1061,7 @@ const Workstations = () => {
                 <button 
                   type="button" 
                   onClick={() => { 
-                    showAddModal ? setShowAddModal(false) : setShowEditModal(false); 
+                    showEditModal ? setShowEditModal(false) : setShowAddModal(false); 
                     setActiveTab('main'); 
                     setSelectedWorkstation(null); 
                     setFormData(initialFormData); 
@@ -823,7 +1074,7 @@ const Workstations = () => {
                   type="submit" 
                   className="btn-gradient"
                 >
-                  {showAddModal ? 'Додати' : 'Зберегти'}
+                  {showEditModal ? 'Зберегти' : 'Додати'}
                 </button>
               </div>
             </form>

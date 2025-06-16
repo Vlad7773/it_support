@@ -46,11 +46,25 @@ const Software = () => {
     name: '',
     version: '',
     license_key: '',
-    installed_date: new Date().toISOString().split('T')[0],
+    installation_date: new Date().toISOString().split('T')[0],
+    expiration_date: '',
+    vendor: '',
+    category: '',
+    notes: '',
   };
 
   const [formData, setFormData] = useState(initialFormData);
   const [localSoftware, setLocalSoftware] = useState([]);
+
+  // Категорії ПЗ
+  const softwareCategories = [
+    { value: 'system', name: 'Системне ПЗ' },
+    { value: 'office', name: 'Офісне ПЗ' },
+    { value: 'security', name: 'Безпека' },
+    { value: 'development', name: 'Розробка' },
+    { value: 'specialized', name: 'Спеціалізоване' },
+    { value: 'other', name: 'Інше' }
+  ];
 
   useEffect(() => {
     if (allSoftware) {
@@ -69,11 +83,80 @@ const Software = () => {
 
   // Не потрібно завантажувати ПЗ для окремого АРМ, використовуємо allSoftware
 
+  // Валідація форми
+  const validateForm = () => {
+    const errors = [];
+    
+    if (!formData.workstation_id) {
+      errors.push('Виберіть АРМ');
+    }
+    
+    if (!formData.name?.trim()) {
+      errors.push('Введіть назву ПЗ');
+    }
+    
+    if (!formData.version?.trim()) {
+      errors.push('Введіть версію ПЗ');
+    }
+    
+    if (!formData.installation_date) {
+      errors.push('Вкажіть дату встановлення');
+    }
+    
+    // Перевірка дат
+    if (formData.expiration_date) {
+      const installDate = new Date(formData.installation_date);
+      const expirationDate = new Date(formData.expiration_date);
+      if (expirationDate < installDate) {
+        errors.push('Дата закінчення ліцензії не може бути раніше дати встановлення');
+      }
+    }
+    
+    // Перевірка на дублікати
+    const duplicateSoftware = localSoftware.find(s => 
+      s.workstation_id === parseInt(formData.workstation_id, 10) &&
+      s.name.toLowerCase() === formData.name.toLowerCase() &&
+      s.id !== selectedSoftware?.id
+    );
+    if (duplicateSoftware) {
+      errors.push(`ПЗ "${formData.name}" вже встановлено на цьому АРМ`);
+    }
+    
+    return errors;
+  };
+
+  // Функція для показу помилок
+  const showErrors = (errors) => {
+    if (!Array.isArray(errors)) {
+      errors = [errors];
+    }
+    
+    const errorDiv = document.createElement('div');
+    errorDiv.className = 'fixed top-4 right-4 bg-red-600 text-white px-6 py-4 rounded-lg shadow-lg z-50 animate-fadeIn';
+    errorDiv.innerHTML = `
+      <div class="flex items-start gap-3">
+        <svg class="h-5 w-5 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+          <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+        </svg>
+        <div>
+          ${errors.map(err => `<div class="mb-1">${err}</div>`).join('')}
+        </div>
+      </div>
+    `;
+    document.body.appendChild(errorDiv);
+    
+    setTimeout(() => {
+      errorDiv.classList.add('animate-fadeOut');
+      setTimeout(() => errorDiv.remove(), 300);
+    }, 5000);
+  };
+
   const handleAdd = async (e) => {
     e.preventDefault();
     
-    if (!formData.workstation_id || !formData.name || !formData.version) {
-      alert('Будь ласка, заповніть обов\'язкові поля');
+    const errors = validateForm();
+    if (errors.length > 0) {
+      showErrors(errors);
       return;
     }
     
@@ -88,15 +171,16 @@ const Software = () => {
       setFormData(initialFormData);
     } catch (err) {
       console.error("Failed to add software:", err);
-      alert(`Помилка додавання ПЗ: ${err.response?.data?.error || err.message}`);
+      showErrors(err.response?.data?.error || err.message);
     }
   };
 
   const handleEdit = async (e) => {
     e.preventDefault();
     
-    if (!formData.workstation_id || !formData.name || !formData.version) {
-      alert('Будь ласка, заповніть обов\'язкові поля');
+    const errors = validateForm();
+    if (errors.length > 0) {
+      showErrors(errors);
       return;
     }
     
@@ -112,7 +196,7 @@ const Software = () => {
       setFormData(initialFormData);
     } catch (err) {
       console.error("Failed to edit software:", err);
-      alert(`Помилка оновлення ПЗ: ${err.response?.data?.error || err.message}`);
+      showErrors(err.response?.data?.error || err.message);
     }
   };
 
@@ -137,7 +221,11 @@ const Software = () => {
       name: software.name || '',
       version: software.version || '',
       license_key: software.license_key || '',
-      installed_date: software.installed_date || new Date().toISOString().split('T')[0],
+      installation_date: software.installation_date || new Date().toISOString().split('T')[0],
+      expiration_date: software.expiration_date || '',
+      vendor: software.vendor || '',
+      category: software.category || '',
+      notes: software.notes || '',
     });
     setShowEditModal(true);
     setActiveTab('main');
@@ -161,7 +249,7 @@ const Software = () => {
 
       return matchesSearch && matchesWorkstation;
     })
-    .sort((a, b) => new Date(b.installed_date) - new Date(a.installed_date));
+    .sort((a, b) => new Date(b.installation_date) - new Date(a.installation_date));
 
   if (loading) return (
     <div className="p-6 flex items-center justify-center h-96">
@@ -256,7 +344,7 @@ const Software = () => {
                     <td className="px-6 py-4 text-gray-300">{software.version}</td>
                     <td className="px-6 py-4 text-gray-300">{workstation?.inventory_number || 'N/A'}</td>
                     <td className="px-6 py-4 text-gray-300">{department?.name || 'N/A'}</td>
-                    <td className="px-6 py-4 text-gray-300">{new Date(software.installed_date).toLocaleDateString('uk-UA')}</td>
+                    <td className="px-6 py-4 text-gray-300">{new Date(software.installation_date).toLocaleDateString('uk-UA')}</td>
                     <td className="px-6 py-4 text-gray-300 font-mono text-sm">{software.license_key || 'Не вказано'}</td>
                     <td className="px-6 py-4 text-center">
                       <button
@@ -372,8 +460,8 @@ const Software = () => {
                   <label className="block text-sm font-medium text-dark-textSecondary mb-1">Дата встановлення</label>
                   <input 
                     type="date"
-                    value={formData.installed_date} 
-                    onChange={(e) => setFormData({...formData, installed_date: e.target.value})} 
+                    value={formData.installation_date} 
+                    onChange={(e) => setFormData({...formData, installation_date: e.target.value})} 
                     className="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-white focus:ring-primary-500 focus:border-primary-500"
                   />
                 </div>
@@ -458,64 +546,54 @@ const Software = () => {
             </div>
             
             {/* Основна інформація */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-white border-b border-dark-border pb-2">
-                  Інформація про ПЗ
-                </h3>
-                <div className="space-y-3">
-                  <div className="flex justify-between">
-                    <span className="text-gray-400">Назва:</span>
-                    <span className="text-white font-medium">{selectedSoftware.name}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-400">Версія:</span>
-                    <span className="text-white">{selectedSoftware.version}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-400">Дата встановлення:</span>
-                    <span className="text-white">{new Date(selectedSoftware.installed_date).toLocaleDateString('uk-UA')}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-400">Ліцензійний ключ:</span>
-                    <span className="text-white font-mono text-sm">{selectedSoftware.license_key || 'Не вказано'}</span>
-                  </div>
-                </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <p>
+                  <strong>Назва:</strong> {selectedSoftware.name}
+                </p>
+                <p>
+                  <strong>Версія:</strong> {selectedSoftware.version}
+                </p>
+                <p>
+                  <strong>Виробник:</strong> {selectedSoftware.vendor || 'Не вказано'}
+                </p>
+                <p>
+                  <strong>Категорія:</strong> {softwareCategories.find(c => c.value === selectedSoftware.category)?.name || 'Не вказано'}
+                </p>
               </div>
+              <div className="space-y-2">
+                <p>
+                  <strong>АРМ:</strong> {workstations.find(w => w.id === selectedSoftware.workstation_id)?.inventory_number}
+                </p>
+                <p>
+                  <strong>Відділ:</strong> {departments.find(d => d.id === workstations.find(w => w.id === selectedSoftware.workstation_id)?.department_id)?.name}
+                </p>
+                <p>
+                  <strong>Встановлено:</strong> {new Date(selectedSoftware.installation_date).toLocaleDateString()}
+                </p>
+                {selectedSoftware.expiration_date && (
+                  <p>
+                    <strong>Закінчення ліцензії:</strong> {new Date(selectedSoftware.expiration_date).toLocaleDateString()}
+                  </p>
+                )}
+              </div>
+            </div>
 
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-white border-b border-dark-border pb-2">
-                  Інформація про АРМ
-                </h3>
-                <div className="space-y-3">
-                  {(() => {
-                    const workstation = workstations.find(w => w.id === selectedSoftware.workstation_id);
-                    const department = departments.find(d => d.id === workstation?.department_id);
-                    const responsible = users.find(u => u.id === workstation?.responsible_id);
-                    
-                    return (
-                      <>
-                        <div className="flex justify-between">
-                          <span className="text-gray-400">АРМ:</span>
-                          <span className="text-white">{workstation?.inventory_number || 'N/A'}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-gray-400">Відділ:</span>
-                          <span className="text-white">{department?.name || 'N/A'}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-gray-400">Відповідальний:</span>
-                          <span className="text-white">{responsible?.full_name || 'Не вказано'}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-gray-400">IP адреса:</span>
-                          <span className="text-white font-mono">{workstation?.ip_address || 'Не вказано'}</span>
-                        </div>
-                      </>
-                    );
-                  })()}
+            {/* Ліцензія та примітки */}
+            <div className="space-y-4">
+              {selectedSoftware.license_key && (
+                <div>
+                  <h3 className="font-medium mb-2">Ліцензійний ключ:</h3>
+                  <p className="text-gray-300 font-mono">{selectedSoftware.license_key}</p>
                 </div>
-              </div>
+              )}
+              
+              {selectedSoftware.notes && (
+                <div>
+                  <h3 className="font-medium mb-2">Примітки:</h3>
+                  <p className="text-gray-300">{selectedSoftware.notes}</p>
+                </div>
+              )}
             </div>
 
             {/* Дії */}

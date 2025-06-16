@@ -571,12 +571,14 @@ const Workstations = () => {
     );
   };
 
-  // Оновлена функція для фільтрації користувачів при виборі відповідального
-  const getAvailableResponsibles = (departmentId) => {
-    return users.filter(user => 
-      // Прибираємо перевірку на відділ
-      user.role === 'technician' || user.role === 'admin'
-    );
+  // Функція для фільтрації користувачів при виборі відповідального
+  const getAvailableResponsibles = () => {
+    // Якщо відділ не вибрано, показуємо всіх користувачів
+    if (!formData.department_id) {
+      return users;
+    }
+    // Інакше показуємо тільки користувачів з вибраного відділу
+    return users.filter(user => user.department_id === parseInt(formData.department_id));
   };
 
   if (loading) return (
@@ -647,9 +649,9 @@ const Workstations = () => {
             onChange={(e) => setFilterGrif(e.target.value)}
             className="bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
           >
-            <option value="all">Всі підрозділи</option>
-            {grifLevels.filter(grif => grif.value !== 'відкрито').map(grif => (
-              <option key={grif.id} value={grif.value}>{grif.name.replace('\n', ' ')}</option>
+            <option value="all">Всі грифи</option>
+            {grifLevels.map(grif => (
+              <option key={grif.id} value={grif.value}>{grif.name}</option>
             ))}
           </select>
 
@@ -830,7 +832,7 @@ const Workstations = () => {
                       className="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-white focus:ring-primary-500 focus:border-primary-500"
                     >
                       <option value="">Виберіть відповідального</option>
-                      {getAvailableResponsibles(formData.department_id).map(user => (
+                      {getAvailableResponsibles().map(user => (
                         <option key={user.id} value={user.id}>{user.full_name}</option>
                       ))}
                     </select>
@@ -840,9 +842,13 @@ const Workstations = () => {
                     <select 
                       value={formData.grif} 
                       onChange={(e) => setFormData({...formData, grif: e.target.value})} 
-                      className="modern-select"
+                      className="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-white focus:ring-primary-500 focus:border-primary-500"
+                      required
                     >
-                      {grifLevels.map(grif => <option key={grif.id} value={grif.value}>{grif.name.replace('\n', ' ')}</option>)}
+                      <option value="">Виберіть гриф</option>
+                      {grifLevels.map(grif => (
+                        <option key={grif.id} value={grif.value}>{grif.name}</option>
+                      ))}
                     </select>
                   </div>
                   <div>

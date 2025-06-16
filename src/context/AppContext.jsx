@@ -43,47 +43,59 @@ export const AppProvider = ({ children }) => {
   const [errorSoftware, setErrorSoftware] = useState(null);
 
   // Завантаження даних
-  const fetchData = async () => {
+  const loadData = async () => {
+    setLoading(true);
+    setError(null);
+    
     try {
-      setLoading(true);
-      const [workstationsRes, usersRes, ticketsRes, repairsRes, departmentsRes, workstationStatusesRes, grifLevelsRes, softwareRes] = await Promise.all([
+      const [
+        workstationsRes,
+        usersRes,
+        ticketsRes,
+        repairsRes,
+        softwareRes,
+        departmentsRes
+      ] = await Promise.all([
         api.get('/workstations'),
         api.get('/users'),
         api.get('/tickets'),
         api.get('/repairs'),
-        api.get('/departments'),
-        api.get('/workstationstatuses'),
-        api.get('/griflevels'),
-        api.get('/software')
+        api.get('/software'),
+        api.get('/departments')
+      ]);
+
+      // Встановлюємо грифи з бази даних
+      setGrifLevels([
+        { id: 1, value: 'Особливої важливості', name: 'Особливої важливості' },
+        { id: 2, value: 'Цілком таємно', name: 'Цілком таємно' },
+        { id: 3, value: 'Таємно', name: 'Таємно' },
+        { id: 4, value: 'ДСК', name: 'ДСК' },
+        { id: 5, value: 'Відкрито', name: 'Відкрито' }
       ]);
 
       setWorkstations(workstationsRes.data);
       setUsers(usersRes.data);
       setTickets(ticketsRes.data);
       setRepairs(repairsRes.data);
-      setDepartments(departmentsRes.data);
-      setWorkstationStatuses(workstationStatusesRes.data);
-      setGrifLevels(grifLevelsRes.data);
       setAllSoftware(softwareRes.data);
-
-      setError(null);
+      setDepartments(departmentsRes.data);
     } catch (err) {
-      if (err.response?.status === 403) {
-        setError('Доступ заборонено. Недостатньо прав.');
-      } else {
-        setError('Помилка завантаження даних');
-        console.error('Error fetching data:', err);
-      }
+      handleError(err, 'Помилка завантаження даних');
     } finally {
       setLoading(false);
     }
   };
 
+  // Завантажуємо дані при монтуванні компонента
   useEffect(() => {
-    if (currentUser) {
-      fetchData();
-    }
-  }, [currentUser]);
+    loadData();
+  }, []);
+
+  // Оновлюємо дані кожні 5 хвилин
+  useEffect(() => {
+    const interval = setInterval(loadData, 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Function to fetch software for a specific workstation
   const fetchSoftwareForWorkstation = async (workstationId) => {
@@ -108,7 +120,7 @@ export const AppProvider = ({ children }) => {
       setAllSoftware(prev => [...prev, response.data]);
       return response.data;
     } catch (err) {
-      handleApiError(err, 'Помилка додавання ПЗ');
+      handleError(err, 'Помилка додавання ПЗ');
       throw err;
     }
   };
@@ -119,7 +131,7 @@ export const AppProvider = ({ children }) => {
       setAllSoftware(prev => prev.map(s => s.id === softwareId ? response.data : s));
       return response.data;
     } catch (err) {
-      handleApiError(err, 'Помилка оновлення ПЗ');
+      handleError(err, 'Помилка оновлення ПЗ');
       throw err;
     }
   };
@@ -129,20 +141,17 @@ export const AppProvider = ({ children }) => {
       await api.delete(`/software/${softwareId}`);
       setAllSoftware(prev => prev.filter(s => s.id !== softwareId));
     } catch (err) {
-      handleApiError(err, 'Помилка видалення ПЗ');
+      handleError(err, 'Помилка видалення ПЗ');
       throw err;
     }
   };
 
-  // Helper function to handle API errors
-  const handleApiError = (err, defaultMessage) => {
-    if (err.response?.status === 403) {
-      setError('Доступ заборонено. Недостатньо прав.');
-    } else if (err.response?.data?.error) {
-      setError(err.response.data.error);
-    } else {
-      setError(defaultMessage);
-    }
+  const handleError = (error, customMessage) => {
+    console.error(customMessage, error);
+    const errorMessage = error.response?.data?.error || error.message || customMessage;
+    setError(errorMessage);
+    setTimeout(() => setError(null), 5000); // Очищаємо помилку через 5 секунд
+    throw error;
   };
 
   // Workstations CRUD
@@ -152,8 +161,7 @@ export const AppProvider = ({ children }) => {
       setWorkstations(prev => [...prev, response.data]);
       return response.data;
     } catch (err) {
-      handleApiError(err, 'Помилка додавання АРМ');
-      throw err;
+      handleError(err, 'Помилка додавання АРМ');
     }
   };
 
@@ -163,8 +171,7 @@ export const AppProvider = ({ children }) => {
       setWorkstations(prev => prev.map(w => w.id === id ? response.data : w));
       return response.data;
     } catch (err) {
-      handleApiError(err, 'Помилка оновлення АРМ');
-      throw err;
+      handleError(err, 'Помилка оновлення АРМ');
     }
   };
 
@@ -173,8 +180,7 @@ export const AppProvider = ({ children }) => {
       await api.delete(`/workstations/${id}`);
       setWorkstations(prev => prev.filter(w => w.id !== id));
     } catch (err) {
-      handleApiError(err, 'Помилка видалення АРМ');
-      throw err;
+      handleError(err, 'Помилка видалення АРМ');
     }
   };
 
@@ -185,7 +191,7 @@ export const AppProvider = ({ children }) => {
       setUsers(prev => [...prev, response.data]);
       return response.data;
     } catch (err) {
-      handleApiError(err, 'Помилка додавання користувача');
+      handleError(err, 'Помилка додавання користувача');
       throw err;
     }
   };
@@ -196,7 +202,7 @@ export const AppProvider = ({ children }) => {
       setUsers(prev => prev.map(u => u.id === id ? response.data : u));
       return response.data;
     } catch (err) {
-      handleApiError(err, 'Помилка оновлення користувача');
+      handleError(err, 'Помилка оновлення користувача');
       throw err;
     }
   };
@@ -206,7 +212,7 @@ export const AppProvider = ({ children }) => {
       await api.delete(`/users/${id}`);
       setUsers(prev => prev.filter(u => u.id !== id));
     } catch (err) {
-      handleApiError(err, 'Помилка видалення користувача');
+      handleError(err, 'Помилка видалення користувача');
       throw err;
     }
   };
@@ -218,8 +224,7 @@ export const AppProvider = ({ children }) => {
       setTickets(prev => [...prev, response.data]);
       return response.data;
     } catch (err) {
-      setError('Помилка додавання заявки');
-      throw err;
+      handleError(err, 'Помилка додавання заявки');
     }
   };
 
@@ -229,8 +234,7 @@ export const AppProvider = ({ children }) => {
       setTickets(prev => prev.map(t => t.id === id ? response.data : t));
       return response.data;
     } catch (err) {
-      setError('Помилка оновлення заявки');
-      throw err;
+      handleError(err, 'Помилка оновлення заявки');
     }
   };
 
@@ -239,8 +243,7 @@ export const AppProvider = ({ children }) => {
       await api.delete(`/tickets/${id}`);
       setTickets(prev => prev.filter(t => t.id !== id));
     } catch (err) {
-      setError('Помилка видалення заявки');
-      throw err;
+      handleError(err, 'Помилка видалення заявки');
     }
   };
 
@@ -251,8 +254,7 @@ export const AppProvider = ({ children }) => {
       setRepairs(prev => [...prev, response.data]);
       return response.data;
     } catch (err) {
-      setError('Помилка додавання ремонту');
-      throw err;
+      handleError(err, 'Помилка додавання ремонту');
     }
   };
 
@@ -262,8 +264,7 @@ export const AppProvider = ({ children }) => {
       setRepairs(prev => prev.map(r => r.id === id ? response.data : r));
       return response.data;
     } catch (err) {
-      setError('Помилка оновлення ремонту');
-      throw err;
+      handleError(err, 'Помилка оновлення ремонту');
     }
   };
 
@@ -272,8 +273,7 @@ export const AppProvider = ({ children }) => {
       await api.delete(`/repairs/${id}`);
       setRepairs(prev => prev.filter(r => r.id !== id));
     } catch (err) {
-      setError('Помилка видалення ремонту');
-      throw err;
+      handleError(err, 'Помилка видалення ремонту');
     }
   };
 
@@ -293,7 +293,7 @@ export const AppProvider = ({ children }) => {
     setCurrentUser,
     loadingSoftware,
     errorSoftware,
-    fetchData,
+    fetchData: loadData,
     fetchSoftwareForWorkstation,
     addSoftwareToWorkstation,
     updateInstalledSoftware,

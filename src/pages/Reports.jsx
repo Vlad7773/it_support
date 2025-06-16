@@ -31,7 +31,8 @@ const Reports = () => {
     allSoftware,
     users,
     departments,
-    loading
+    loading,
+    error
   } = useApp();
 
   const [activeTab, setActiveTab] = useState('overview');
@@ -46,15 +47,7 @@ const Reports = () => {
   const [previewData, setPreviewData] = useState(null);
   const [loadingReport, setLoadingReport] = useState(true);
   const [data, setData] = useState([]);
-  const [error, setError] = useState(null);
-
-  // Статистика
-  const [stats, setStats] = useState({
-    workstations: { total: 0, active: 0, issues: 0 },
-    tickets: { total: 0, open: 0, resolved: 0, critical: 0 },
-    repairs: { total: 0, pending: 0, completed: 0, cost: 0 },
-    software: { total: 0, licensed: 0, unlicensed: 0 }
-  });
+  const [stats, setStats] = useState(null);
 
   useEffect(() => {
     calculateStats();
@@ -62,130 +55,191 @@ const Reports = () => {
   }, [workstations, tickets, repairs, allSoftware, dateRange, reportType]);
 
   const calculateStats = () => {
-    const startDate = new Date(dateRange.start);
-    const endDate = new Date(dateRange.end);
+    let currentStats = {};
 
-    // Фільтруємо дані за датою
-    const filteredTickets = tickets.filter(ticket => {
-      const ticketDate = new Date(ticket.created_at);
-      return ticketDate >= startDate && ticketDate <= endDate;
-    });
+    switch (reportType) {
+      case 'workstations':
+        currentStats = {
+          total: workstations.length,
+          byGrif: workstations.reduce((acc, ws) => {
+            acc[ws.grif] = (acc[ws.grif] || 0) + 1;
+            return acc;
+          }, {}),
+          byStatus: workstations.reduce((acc, ws) => {
+            acc[ws.status] = (acc[ws.status] || 0) + 1;
+            return acc;
+          }, {}),
+          byType: workstations.reduce((acc, ws) => {
+            acc[ws.type] = (acc[ws.type] || 0) + 1;
+            return acc;
+          }, {})
+        };
+        break;
 
-    const filteredRepairs = repairs.filter(repair => {
-      const repairDate = new Date(repair.created_at);
-      return repairDate >= startDate && repairDate <= endDate;
-    });
+      case 'tickets':
+        currentStats = {
+          total: tickets.length,
+          byStatus: tickets.reduce((acc, ticket) => {
+            acc[ticket.status] = (acc[ticket.status] || 0) + 1;
+            return acc;
+          }, {}),
+          byPriority: tickets.reduce((acc, ticket) => {
+            acc[ticket.priority] = (acc[ticket.priority] || 0) + 1;
+            return acc;
+          }, {}),
+          byType: tickets.reduce((acc, ticket) => {
+            acc[ticket.type] = (acc[ticket.type] || 0) + 1;
+            return acc;
+          }, {}),
+          averageResolutionTime: calculateAverageResolutionTime(tickets)
+        };
+        break;
 
-    // Статистика АРМ
-    const workstationStats = {
-      total: workstations.length,
-      active: workstations.filter(ws => ws.status !== 'inactive').length,
-      issues: workstations.filter(ws => {
-        const hasOpenTickets = filteredTickets.some(t => t.workstation_id === ws.id && t.status === 'open');
-        const hasPendingRepairs = filteredRepairs.some(r => r.workstation_id === ws.id && r.status === 'pending');
-        return hasOpenTickets || hasPendingRepairs;
-      }).length
-    };
+      case 'repairs':
+        currentStats = {
+          total: repairs.length,
+          byStatus: repairs.reduce((acc, repair) => {
+            acc[repair.status] = (acc[repair.status] || 0) + 1;
+            return acc;
+          }, {}),
+          byType: repairs.reduce((acc, repair) => {
+            acc[repair.repair_type] = (acc[repair.repair_type] || 0) + 1;
+            return acc;
+          }, {}),
+          totalCost: repairs.reduce((acc, repair) => acc + (repair.cost || 0), 0),
+          averageRepairTime: calculateAverageRepairTime(repairs)
+        };
+        break;
 
-    // Статистика заявок
-    const ticketStats = {
-      total: filteredTickets.length,
-      open: filteredTickets.filter(t => t.status === 'open').length,
-      resolved: filteredTickets.filter(t => t.status === 'resolved').length,
-      critical: filteredTickets.filter(t => t.priority === 'critical').length
-    };
+      default:
+        break;
+    }
 
-    // Статистика ремонтів
-    const repairStats = {
-      total: filteredRepairs.length,
-      pending: filteredRepairs.filter(r => r.status === 'pending').length,
-      completed: filteredRepairs.filter(r => r.status === 'completed').length,
-      cost: filteredRepairs.reduce((sum, r) => sum + (parseFloat(r.cost) || 0), 0)
-    };
+    setStats(currentStats);
+  };
 
-    // Статистика ПЗ
-    const softwareStats = {
-      total: allSoftware.length,
-      licensed: allSoftware.filter(s => s.license_key && s.license_key.trim() !== '').length,
-      unlicensed: allSoftware.filter(s => !s.license_key || s.license_key.trim() === '').length
-    };
+  const calculateAverageResolutionTime = (tickets) => {
+    const resolvedTickets = tickets.filter(t => t.resolution_date);
+    if (!resolvedTickets.length) return 0;
 
-    setStats({
-      workstations: workstationStats,
-      tickets: ticketStats,
-      repairs: repairStats,
-      software: softwareStats
-    });
+    const totalTime = resolvedTickets.reduce((acc, ticket) => {
+      const created = new Date(ticket.created_at);
+      const resolved = new Date(ticket.resolution_date);
+      return acc + (resolved - created);
+    }, 0);
+
+    return Math.round(totalTime / resolvedTickets.length / (1000 * 60 * 60 * 24)); // в днях
+  };
+
+  const calculateAverageRepairTime = (repairs) => {
+    const completedRepairs = repairs.filter(r => r.completion_date);
+    if (!completedRepairs.length) return 0;
+
+    const totalTime = completedRepairs.reduce((acc, repair) => {
+      const started = new Date(repair.repair_date);
+      const completed = new Date(repair.completion_date);
+      return acc + (completed - started);
+    }, 0);
+
+    return Math.round(totalTime / completedRepairs.length / (1000 * 60 * 60 * 24)); // в днях
   };
 
   const prepareData = () => {
-    try {
-      let result = [];
+    let result = [];
 
-      switch (reportType) {
-        case 'workstations':
-          result = workstations.map(ws => ({
+    switch (reportType) {
+      case 'workstations':
+        result = workstations.map(ws => {
+          const responsible = users.find(u => u.id === ws.responsible_id);
+          return {
             'Інвентарний номер': ws.inventory_number,
-            'Відділ': departments.find(d => d.id === ws.department_id)?.name,
-            'Відповідальний': users.find(u => u.id === ws.responsible_id)?.full_name,
-            'Тип': ws.type,
+            'IP адреса': ws.ip_address || '-',
+            'MAC адреса': ws.mac_address || '-',
             'Гриф': ws.grif,
-            'Контакти': ws.contacts,
-            'Програмне забезпечення': ws.software?.map(s => s.name).join(', '),
-            'Створено': new Date(ws.created_at).toLocaleString(),
-            'Оновлено': new Date(ws.updated_at).toLocaleString()
-          }));
-          break;
+            'ОС': ws.os_name,
+            'Відповідальний': responsible?.full_name || '-',
+            'Контакти': ws.contacts || '-',
+            'Процесор': ws.processor || '-',
+            'RAM (GB)': ws.ram || '-',
+            'Сховище': ws.storage || '-',
+            'Монітор': ws.monitor || '-',
+            'Мережа': ws.network || '-',
+            'Тип': ws.type || '-',
+            'Статус': ws.status || '-',
+            'Примітки': ws.notes || '-',
+            'Дата реєстрації': new Date(ws.registration_date).toLocaleDateString('uk-UA')
+          };
+        });
+        break;
 
-        case 'repairs':
-          result = repairs.map(repair => ({
-            'АРМ': workstations.find(w => w.id === repair.workstation_id)?.inventory_number,
-            'Опис проблеми': repair.description,
-            'Вирішення': repair.solution,
-            'Статус': repair.status,
-            'Технік': users.find(u => u.id === repair.technician_id)?.full_name,
-            'Дата створення': new Date(repair.created_at).toLocaleString(),
-            'Дата оновлення': new Date(repair.updated_at).toLocaleString()
-          }));
-          break;
-
-        case 'tickets':
-          result = tickets.map(ticket => ({
-            'АРМ': workstations.find(w => w.id === ticket.workstation_id)?.inventory_number,
-            'Тема': ticket.title,
+      case 'tickets':
+        result = tickets.map(ticket => {
+          const workstation = workstations.find(w => w.id === ticket.workstation_id);
+          const user = users.find(u => u.id === ticket.user_id);
+          const assignedTo = users.find(u => u.id === ticket.assigned_to);
+          return {
+            'Номер': ticket.id,
+            'АРМ': workstation?.inventory_number || '-',
+            'Заголовок': ticket.title,
+            'Тип': ticket.type,
             'Опис': ticket.description,
-            'Пріоритет': ticket.priority,
             'Статус': ticket.status,
-            'Призначено': users.find(u => u.id === ticket.assigned_to)?.full_name,
-            'Створив': users.find(u => u.id === ticket.created_by)?.full_name,
-            'Дата створення': new Date(ticket.created_at).toLocaleString(),
-            'Дата оновлення': new Date(ticket.updated_at).toLocaleString()
-          }));
-          break;
+            'Пріоритет': ticket.priority,
+            'Користувач': user?.full_name || '-',
+            'Виконавець': assignedTo?.full_name || '-',
+            'Примітки': ticket.resolution_notes || '-',
+            'Створено': new Date(ticket.created_at).toLocaleDateString('uk-UA'),
+            'Вирішено': ticket.resolution_date ? new Date(ticket.resolution_date).toLocaleDateString('uk-UA') : '-'
+          };
+        });
+        break;
 
-        case 'software':
-          result = allSoftware.map(sw => ({
-            'Назва': sw.name,
-            'Версія': sw.version,
-            'Тип ліцензії': sw.license_type,
-            'Дата створення': new Date(sw.created_at).toLocaleString(),
-            'Дата оновлення': new Date(sw.updated_at).toLocaleString()
-          }));
-          break;
-      }
+      case 'repairs':
+        result = repairs.map(repair => {
+          const workstation = workstations.find(w => w.id === repair.workstation_id);
+          const technician = users.find(u => u.id === repair.technician_id);
+          return {
+            'Номер': repair.id,
+            'АРМ': workstation?.inventory_number || '-',
+            'Тип ремонту': repair.repair_type,
+            'Опис': repair.description,
+            'Статус': repair.status,
+            'Технік': technician?.full_name || '-',
+            'Діагноз': repair.diagnosis || '-',
+            'Вартість': repair.cost ? `${repair.cost} грн` : '-',
+            'Дата початку': new Date(repair.repair_date).toLocaleDateString('uk-UA'),
+            'Дата завершення': repair.completion_date ? new Date(repair.completion_date).toLocaleDateString('uk-UA') : '-'
+          };
+        });
+        break;
 
-      setData(result);
-      setError(null);
-    } catch (err) {
-      setError(err.message);
+      default:
+        break;
     }
+
+    setData(result);
   };
 
   const downloadExcel = () => {
-    const ws = XLSX.utils.json_to_sheet(data);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Report');
-    XLSX.writeFile(wb, `${reportType}_${new Date().toISOString().split('T')[0]}.xlsx`);
+    if (!data.length) return;
+
+    try {
+      // Створюємо новий робочий зошит
+      const wb = XLSX.utils.book_new();
+
+      // Перетворюємо дані в формат для Excel
+      const ws = XLSX.utils.json_to_sheet(data);
+
+      // Додаємо лист до робочого зошита
+      XLSX.utils.book_append_sheet(wb, ws, reportType);
+
+      // Зберігаємо файл
+      const fileName = `звіт_${reportType}_${new Date().toLocaleDateString('uk-UA')}.xlsx`;
+      XLSX.writeFile(wb, fileName);
+    } catch (err) {
+      console.error('Помилка при створенні Excel файлу:', err);
+      alert('Помилка при створенні Excel файлу');
+    }
   };
 
   const reportTypes = [
@@ -632,32 +686,103 @@ const Reports = () => {
   };
 
   const renderTable = () => {
-    if (!data.length) return <p className="text-center text-gray-500 mt-4">Немає даних для відображення</p>;
+    if (!data.length) {
+      return (
+        <div className="text-center py-8 text-gray-500">
+          Немає даних для відображення
+        </div>
+      );
+    }
+
+    const headers = Object.keys(data[0]);
 
     return (
       <div className="overflow-x-auto">
-        <table className="min-w-full bg-dark-bg border border-dark-border">
+        <table className="min-w-full divide-y divide-gray-700">
           <thead>
             <tr>
-              {Object.keys(data[0]).map(key => (
-                <th key={key} className="px-6 py-3 border-b border-dark-border text-left text-xs font-medium text-dark-textSecondary uppercase tracking-wider">
-                  {key}
+              {headers.map((header, index) => (
+                <th
+                  key={index}
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider"
+                >
+                  {header}
                 </th>
               ))}
             </tr>
           </thead>
-          <tbody>
-            {data.map((item, index) => (
-              <tr key={index} className={index % 2 === 0 ? 'bg-dark-bg' : 'bg-dark-bgSecondary'}>
-                {Object.entries(item).map(([key, value]) => (
-                  <td key={key} className="px-6 py-4 whitespace-nowrap text-sm text-dark-text">
-                    {value || '-'}
+          <tbody className="divide-y divide-gray-700">
+            {data.map((row, rowIndex) => (
+              <tr key={rowIndex} className="hover:bg-gray-800">
+                {headers.map((header, colIndex) => (
+                  <td key={colIndex} className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+                    {row[header]}
                   </td>
                 ))}
               </tr>
             ))}
           </tbody>
         </table>
+      </div>
+    );
+  };
+
+  const renderStats = () => {
+    if (!stats) return null;
+
+    const formatNumber = (num) => new Intl.NumberFormat('uk-UA').format(num);
+
+    const renderStatItem = (title, value) => (
+      <div className="bg-gray-800 rounded-lg p-4">
+        <h3 className="text-sm font-medium text-gray-400">{title}</h3>
+        <p className="mt-1 text-2xl font-semibold text-white">{value}</p>
+      </div>
+    );
+
+    const renderDistribution = (data, title) => (
+      <div className="bg-gray-800 rounded-lg p-4">
+        <h3 className="text-sm font-medium text-gray-400 mb-2">{title}</h3>
+        <div className="space-y-2">
+          {Object.entries(data).map(([key, value]) => (
+            <div key={key} className="flex justify-between items-center">
+              <span className="text-gray-300">{key}</span>
+              <span className="text-white font-medium">{value}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+        {reportType === 'workstations' && (
+          <>
+            {renderStatItem('Всього АРМ', formatNumber(stats.total))}
+            {renderDistribution(stats.byGrif, 'Розподіл за грифом')}
+            {renderDistribution(stats.byStatus, 'Розподіл за статусом')}
+            {renderDistribution(stats.byType, 'Розподіл за типом')}
+          </>
+        )}
+
+        {reportType === 'tickets' && (
+          <>
+            {renderStatItem('Всього заявок', formatNumber(stats.total))}
+            {renderStatItem('Середній час вирішення', `${formatNumber(stats.averageResolutionTime)} днів`)}
+            {renderDistribution(stats.byStatus, 'Розподіл за статусом')}
+            {renderDistribution(stats.byPriority, 'Розподіл за пріоритетом')}
+            {renderDistribution(stats.byType, 'Розподіл за типом')}
+          </>
+        )}
+
+        {reportType === 'repairs' && (
+          <>
+            {renderStatItem('Всього ремонтів', formatNumber(stats.total))}
+            {renderStatItem('Загальна вартість', `${formatNumber(stats.totalCost)} грн`)}
+            {renderStatItem('Середній час ремонту', `${formatNumber(stats.averageRepairTime)} днів`)}
+            {renderDistribution(stats.byStatus, 'Розподіл за статусом')}
+            {renderDistribution(stats.byType, 'Розподіл за типом')}
+          </>
+        )}
       </div>
     );
   };
@@ -675,300 +800,45 @@ const Reports = () => {
 
   return (
     <div className="p-6 space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-semibold text-white">Звіти та аналітика</h1>
-          <p className="text-gray-400 mt-1">Генерація детальних звітів та статистичний аналіз</p>
+      <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+        <div className="flex items-center gap-4 w-full sm:w-auto">
+          <select
+            value={reportType}
+            onChange={(e) => setReportType(e.target.value)}
+            className="bg-gray-800 text-white rounded-lg px-4 py-2 w-full sm:w-auto"
+          >
+            <option value="workstations">АРМ</option>
+            <option value="tickets">Заявки</option>
+            <option value="repairs">Ремонти</option>
+          </select>
+          
+          <button
+            onClick={downloadExcel}
+            disabled={loading || !data.length}
+            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <FiDownload className="h-5 w-5" />
+            <span>Завантажити Excel</span>
+          </button>
         </div>
-      </div>
-
-      {/* Фільтри */}
-      <div className="bg-dark-card rounded-lg p-6">
-        <h2 className="text-lg font-semibold text-white mb-4">Параметри звіту</h2>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-400 mb-2">Період з</label>
-            <input
-              type="date"
-              value={dateRange.start}
-              onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
-              className="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-400 mb-2">Період до</label>
-            <input
-              type="date"
-              value={dateRange.end}
-              onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
-              className="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-400 mb-2">Підрозділ</label>
-            <select
-              value={selectedDepartment}
-              onChange={(e) => setSelectedDepartment(e.target.value)}
-              className="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
-            >
-              <option value="all">Всі підрозділи</option>
-              {departments.map(dept => (
-                <option key={dept.id} value={dept.id}>{dept.name}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-400 mb-2">АРМ</label>
-            <select
-              value={selectedWorkstation}
-              onChange={(e) => setSelectedWorkstation(e.target.value)}
-              className="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
-            >
-              <option value="all">Всі АРМ</option>
-              {workstations.map(ws => (
-                <option key={ws.id} value={ws.id}>{ws.inventory_number}</option>
-              ))}
-            </select>
-          </div>
-        </div>
-      </div>
-
-      {/* Статистика */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="bg-dark-card rounded-lg p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-gray-400 text-sm">АРМ</p>
-              <p className="text-2xl font-bold text-white">{stats.workstations.total}</p>
-              <p className="text-sm text-gray-400">
-                {stats.workstations.issues} з проблемами
-              </p>
-            </div>
-            <ComputerDesktopIcon className="h-12 w-12 text-blue-500" />
-          </div>
-        </div>
-
-        <div className="bg-dark-card rounded-lg p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-gray-400 text-sm">Заявки</p>
-              <p className="text-2xl font-bold text-white">{stats.tickets.total}</p>
-              <p className="text-sm text-gray-400">
-                {stats.tickets.open} відкритих
-              </p>
-            </div>
-            <TicketIcon className="h-12 w-12 text-yellow-500" />
-          </div>
-        </div>
-
-        <div className="bg-dark-card rounded-lg p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-gray-400 text-sm">Ремонти</p>
-              <p className="text-2xl font-bold text-white">{stats.repairs.total}</p>
-              <p className="text-sm text-gray-400">
-                {stats.repairs.completed} завершено
-              </p>
-            </div>
-            <WrenchScrewdriverIcon className="h-12 w-12 text-red-500" />
-          </div>
-        </div>
-
-        <div className="bg-dark-card rounded-lg p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-gray-400 text-sm">Витрати</p>
-              <p className="text-2xl font-bold text-white">₴{stats.repairs.cost.toFixed(0)}</p>
-              <p className="text-sm text-gray-400">
-                на ремонти
-              </p>
-            </div>
-            <ChartBarIcon className="h-12 w-12 text-green-500" />
-          </div>
-        </div>
-      </div>
-
-      {/* Типи звітів */}
-      <div className="bg-dark-card rounded-lg p-6">
-        <h2 className="text-lg font-semibold text-white mb-6">Доступні звіти</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {reportTypes.map(report => {
-            const Icon = report.icon;
-            return (
-              <div key={report.id} className="border border-dark-border rounded-lg p-6 hover:border-primary-500 transition-colors">
-                <div className="flex items-center gap-4 mb-4">
-                  <div className={`p-3 rounded-lg ${report.color}`}>
-                    <Icon className="h-6 w-6 text-white" />
-                  </div>
-                  <div>
-                    <h3 className="text-white font-semibold">{report.name}</h3>
-                    <p className="text-gray-400 text-sm">{report.description}</p>
-                  </div>
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => previewReport(report.id)}
-                    className="flex-1 px-4 py-2 rounded-lg bg-dark-bg text-white hover:bg-dark-hover transition-colors flex items-center justify-center gap-2"
-                  >
-                    <EyeIcon className="h-4 w-4" />
-                    Переглянути
-                  </button>
-                  <button
-                    onClick={() => generateReport(report.id, 'pdf')}
-                    className="flex-1 px-4 py-2 rounded-lg bg-primary-600 text-white hover:bg-primary-700 transition-colors flex items-center justify-center gap-2"
-                  >
-                    <DocumentArrowDownIcon className="h-4 w-4" />
-                    PDF
-                  </button>
-                  <button
-                    onClick={() => generateReport(report.id, 'csv')}
-                    className="px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700 transition-colors"
-                  >
-                    CSV
-                  </button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Швидка аналітика */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Топ проблем */}
-        <div className="bg-dark-card rounded-lg p-6">
-          <h3 className="text-lg font-semibold text-white mb-4">Найчастіші проблеми</h3>
-          <div className="space-y-3">
-            {getTopIssues().map((issue, index) => (
-              <div key={issue.type} className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <span className="w-6 h-6 rounded-full bg-primary-600 text-white text-xs flex items-center justify-center">
-                    {index + 1}
-                  </span>
-                  <span className="text-white">{issue.type}</span>
-                </div>
-                <span className="text-gray-400">{issue.count} заявок</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Статус заявок */}
-        <div className="bg-dark-card rounded-lg p-6">
-          <h3 className="text-lg font-semibold text-white mb-4">Розподіл заявок за статусом</h3>
-          <div className="space-y-3">
-            {Object.entries(getTicketsByStatus()).map(([status, count]) => (
-              <div key={status} className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className={`w-3 h-3 rounded-full ${
-                    status === 'open' ? 'bg-blue-500' :
-                    status === 'in_progress' ? 'bg-yellow-500' :
-                    status === 'resolved' ? 'bg-green-500' : 'bg-gray-500'
-                  }`}></div>
-                  <span className="text-white capitalize">{status}</span>
-                </div>
-                <span className="text-gray-400">{count}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Модальне вікно перегляду */}
-      {showPreview && previewData && (
-        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
-          <div className="bg-dark-card rounded-lg shadow-xl p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-bold text-white">{previewData.title}</h2>
-              <button 
-                onClick={() => setShowPreview(false)} 
-                className="text-gray-400 hover:text-white"
-              >
-                <XMarkIcon className="h-6 w-6" />
-              </button>
-            </div>
-            
-            <div className="text-gray-400 mb-6">
-              Період: {previewData.period}
-            </div>
-
-            {/* Попередній перегляд залежно від типу */}
-            {previewData.stats && (
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                <div className="bg-dark-bg rounded-lg p-4 text-center">
-                  <div className="text-2xl font-bold text-white">{previewData.stats.workstations.total}</div>
-                  <div className="text-gray-400 text-sm">АРМ</div>
-                </div>
-                <div className="bg-dark-bg rounded-lg p-4 text-center">
-                  <div className="text-2xl font-bold text-white">{previewData.stats.tickets.total}</div>
-                  <div className="text-gray-400 text-sm">Заявок</div>
-                </div>
-                <div className="bg-dark-bg rounded-lg p-4 text-center">
-                  <div className="text-2xl font-bold text-white">{previewData.stats.repairs.total}</div>
-                  <div className="text-gray-400 text-sm">Ремонтів</div>
-                </div>
-                <div className="bg-dark-bg rounded-lg p-4 text-center">
-                  <div className="text-2xl font-bold text-white">₴{previewData.stats.repairs.cost.toFixed(0)}</div>
-                  <div className="text-gray-400 text-sm">Витрати</div>
-                </div>
-              </div>
-            )}
-
-            <div className="flex justify-end space-x-3">
-              <button
-                onClick={() => setShowPreview(false)}
-                className="px-4 py-2 rounded-lg bg-dark-bg text-white hover:bg-dark-hover transition-colors"
-              >
-                Закрити
-              </button>
-              <button
-                onClick={() => {
-                  const reportType = reportTypes.find(r => r.name === previewData.title)?.id || 'summary';
-                  generateReport(reportType, 'pdf');
-                }}
-                className="px-4 py-2 rounded-lg bg-primary-600 text-white hover:bg-primary-700 transition-colors"
-              >
-                Завантажити PDF
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-semibold text-dark-text">Звіти</h1>
-        <button
-          onClick={downloadExcel}
-          disabled={loading || !data.length}
-          className="flex items-center px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 disabled:opacity-50"
-        >
-          <FiDownload className="mr-2" />
-          Завантажити Excel
-        </button>
-      </div>
-
-      <div className="mb-6">
-        <select
-          value={reportType}
-          onChange={(e) => setReportType(e.target.value)}
-          className="w-full md:w-64 bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-white focus:ring-primary-500 focus:border-primary-500"
-        >
-          <option value="workstations">АРМ</option>
-          <option value="repairs">Ремонти</option>
-          <option value="tickets">Заявки</option>
-          <option value="software">Програмне забезпечення</option>
-        </select>
       </div>
 
       {loading ? (
-        <div className="text-center py-8">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500 mx-auto"></div>
+        <div className="flex items-center justify-center h-96">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-500 mx-auto mb-4"></div>
+            <p className="text-gray-400">Завантаження даних...</p>
+          </div>
         </div>
       ) : error ? (
-        <div className="text-red-500 text-center py-4">{error}</div>
+        <div className="text-center py-8">
+          <p className="text-red-500">Помилка завантаження даних: {error}</p>
+        </div>
       ) : (
-        renderTable()
+        <>
+          {renderStats()}
+          {renderTable()}
+        </>
       )}
     </div>
   );

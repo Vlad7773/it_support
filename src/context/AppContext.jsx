@@ -3,6 +3,20 @@ import axios from 'axios';
 
 const API_URL = '/api'; // або 'http://localhost:3001/api' якщо proxy не працює
 
+// Створюємо інстанс axios з базовою конфігурацією
+const api = axios.create({
+  baseURL: API_URL
+});
+
+// Додаємо інтерцептор для додавання заголовка з роллю користувача
+api.interceptors.request.use((config) => {
+  const user = JSON.parse(localStorage.getItem('user') || 'null');
+  if (user) {
+    config.headers['user-role'] = user.role;
+  }
+  return config;
+});
+
 const AppContext = createContext();
 
 export const AppProvider = ({ children }) => {
@@ -18,9 +32,8 @@ export const AppProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [currentUser, setCurrentUser] = useState(() => {
-    const storedUser = localStorage.getItem('currentUser');
     try {
-      return storedUser ? JSON.parse(storedUser) : null;
+      return JSON.parse(localStorage.getItem('user') || 'null');
     } catch (e) {
       console.error("Error parsing stored user:", e);
       return null;
@@ -34,22 +47,20 @@ export const AppProvider = ({ children }) => {
     try {
       setLoading(true);
       const [workstationsRes, usersRes, ticketsRes, repairsRes, departmentsRes, workstationStatusesRes, grifLevelsRes, softwareRes] = await Promise.all([
-        axios.get(`${API_URL}/workstations`),
-        axios.get(`${API_URL}/users`),
-        axios.get(`${API_URL}/tickets`),
-        axios.get(`${API_URL}/repairs`),
-        // Додаємо запити до нових ендпоінтів
-        axios.get(`${API_URL}/departments`),
-        axios.get(`${API_URL}/workstationstatuses`),
-        axios.get(`${API_URL}/griflevels`),
-        axios.get(`${API_URL}/software`)
+        api.get('/workstations'),
+        api.get('/users'),
+        api.get('/tickets'),
+        api.get('/repairs'),
+        api.get('/departments'),
+        api.get('/workstationstatuses'),
+        api.get('/griflevels'),
+        api.get('/software')
       ]);
 
       setWorkstations(workstationsRes.data);
       setUsers(usersRes.data);
       setTickets(ticketsRes.data);
       setRepairs(repairsRes.data);
-      // Встановлюємо отримані дані у відповідні стани
       setDepartments(departmentsRes.data);
       setWorkstationStatuses(workstationStatusesRes.data);
       setGrifLevels(grifLevelsRes.data);
@@ -57,28 +68,34 @@ export const AppProvider = ({ children }) => {
 
       setError(null);
     } catch (err) {
-      setError('Помилка завантаження даних');
-      console.error('Error fetching data:', err);
+      if (err.response?.status === 403) {
+        setError('Доступ заборонено. Недостатньо прав.');
+      } else {
+        setError('Помилка завантаження даних');
+        console.error('Error fetching data:', err);
+      }
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchData();
-  }, []);
+    if (currentUser) {
+      fetchData();
+    }
+  }, [currentUser]);
 
   // Function to fetch software for a specific workstation
   const fetchSoftwareForWorkstation = async (workstationId) => {
     try {
       setLoadingSoftware(true);
-      const response = await axios.get(`${API_URL}/workstations/${workstationId}/software`);
+      const response = await api.get(`/workstations/${workstationId}/software`);
       setSelectedWorkstationSoftware(response.data);
       setError(null);
     } catch (err) {
       setError(`Помилка завантаження ПЗ для АРМ ${workstationId}`);
       console.error('Error fetching software for workstation:', err);
-      setSelectedWorkstationSoftware([]); // Clear software on error
+      setSelectedWorkstationSoftware([]);
     } finally {
       setLoadingSoftware(false);
     }
@@ -87,65 +104,76 @@ export const AppProvider = ({ children }) => {
   // Software CRUD operations
   const addSoftwareToWorkstation = async (workstationId, softwareItem) => {
     try {
-      const response = await axios.post(`${API_URL}/software`, softwareItem);
+      const response = await api.post('/software', softwareItem);
       setAllSoftware(prev => [...prev, response.data]);
       return response.data;
     } catch (err) {
-      setError('Помилка додавання ПЗ');
+      handleApiError(err, 'Помилка додавання ПЗ');
       throw err;
     }
   };
 
   const updateInstalledSoftware = async (softwareId, softwareItem) => {
     try {
-      const response = await axios.put(`${API_URL}/software/${softwareId}`, softwareItem);
+      const response = await api.put(`/software/${softwareId}`, softwareItem);
       setAllSoftware(prev => prev.map(s => s.id === softwareId ? response.data : s));
       return response.data;
     } catch (err) {
-      setError('Помилка оновлення ПЗ');
+      handleApiError(err, 'Помилка оновлення ПЗ');
       throw err;
     }
   };
 
   const deleteInstalledSoftware = async (softwareId) => {
     try {
-      await axios.delete(`${API_URL}/software/${softwareId}`);
+      await api.delete(`/software/${softwareId}`);
       setAllSoftware(prev => prev.filter(s => s.id !== softwareId));
     } catch (err) {
-      setError('Помилка видалення ПЗ');
+      handleApiError(err, 'Помилка видалення ПЗ');
       throw err;
+    }
+  };
+
+  // Helper function to handle API errors
+  const handleApiError = (err, defaultMessage) => {
+    if (err.response?.status === 403) {
+      setError('Доступ заборонено. Недостатньо прав.');
+    } else if (err.response?.data?.error) {
+      setError(err.response.data.error);
+    } else {
+      setError(defaultMessage);
     }
   };
 
   // Workstations CRUD
   const addWorkstation = async (workstation) => {
     try {
-      const response = await axios.post(`${API_URL}/workstations`, workstation);
+      const response = await api.post('/workstations', workstation);
       setWorkstations(prev => [...prev, response.data]);
       return response.data;
     } catch (err) {
-      setError('Помилка додавання АРМ');
+      handleApiError(err, 'Помилка додавання АРМ');
       throw err;
     }
   };
 
   const updateWorkstation = async (id, workstation) => {
     try {
-      const response = await axios.put(`${API_URL}/workstations/${id}`, workstation);
+      const response = await api.put(`/workstations/${id}`, workstation);
       setWorkstations(prev => prev.map(w => w.id === id ? response.data : w));
       return response.data;
     } catch (err) {
-      setError('Помилка оновлення АРМ');
+      handleApiError(err, 'Помилка оновлення АРМ');
       throw err;
     }
   };
 
   const deleteWorkstation = async (id) => {
     try {
-      await axios.delete(`${API_URL}/workstations/${id}`);
+      await api.delete(`/workstations/${id}`);
       setWorkstations(prev => prev.filter(w => w.id !== id));
     } catch (err) {
-      setError('Помилка видалення АРМ');
+      handleApiError(err, 'Помилка видалення АРМ');
       throw err;
     }
   };
@@ -153,32 +181,32 @@ export const AppProvider = ({ children }) => {
   // Users CRUD
   const addUser = async (user) => {
     try {
-      const response = await axios.post(`${API_URL}/users`, user);
+      const response = await api.post('/users', user);
       setUsers(prev => [...prev, response.data]);
       return response.data;
     } catch (err) {
-      setError('Помилка додавання користувача');
+      handleApiError(err, 'Помилка додавання користувача');
       throw err;
     }
   };
 
   const updateUser = async (id, user) => {
     try {
-      const response = await axios.put(`${API_URL}/users/${id}`, user);
+      const response = await api.put(`/users/${id}`, user);
       setUsers(prev => prev.map(u => u.id === id ? response.data : u));
       return response.data;
     } catch (err) {
-      setError('Помилка оновлення користувача');
+      handleApiError(err, 'Помилка оновлення користувача');
       throw err;
     }
   };
 
   const deleteUser = async (id) => {
     try {
-      await axios.delete(`${API_URL}/users/${id}`);
+      await api.delete(`/users/${id}`);
       setUsers(prev => prev.filter(u => u.id !== id));
     } catch (err) {
-      setError('Помилка видалення користувача');
+      handleApiError(err, 'Помилка видалення користувача');
       throw err;
     }
   };
@@ -186,7 +214,7 @@ export const AppProvider = ({ children }) => {
   // Tickets CRUD
   const addTicket = async (ticket) => {
     try {
-      const response = await axios.post(`${API_URL}/tickets`, ticket);
+      const response = await api.post('/tickets', ticket);
       setTickets(prev => [...prev, response.data]);
       return response.data;
     } catch (err) {
@@ -197,7 +225,7 @@ export const AppProvider = ({ children }) => {
 
   const updateTicket = async (id, ticket) => {
     try {
-      const response = await axios.put(`${API_URL}/tickets/${id}`, ticket);
+      const response = await api.put(`/tickets/${id}`, ticket);
       setTickets(prev => prev.map(t => t.id === id ? response.data : t));
       return response.data;
     } catch (err) {
@@ -208,7 +236,7 @@ export const AppProvider = ({ children }) => {
 
   const deleteTicket = async (id) => {
     try {
-      await axios.delete(`${API_URL}/tickets/${id}`);
+      await api.delete(`/tickets/${id}`);
       setTickets(prev => prev.filter(t => t.id !== id));
     } catch (err) {
       setError('Помилка видалення заявки');
@@ -219,7 +247,7 @@ export const AppProvider = ({ children }) => {
   // Repairs CRUD
   const addRepair = async (repair) => {
     try {
-      const response = await axios.post(`${API_URL}/repairs`, repair);
+      const response = await api.post('/repairs', repair);
       setRepairs(prev => [...prev, response.data]);
       return response.data;
     } catch (err) {
@@ -230,7 +258,7 @@ export const AppProvider = ({ children }) => {
 
   const updateRepair = async (id, repair) => {
     try {
-      const response = await axios.put(`${API_URL}/repairs/${id}`, repair);
+      const response = await api.put(`/repairs/${id}`, repair);
       setRepairs(prev => prev.map(r => r.id === id ? response.data : r));
       return response.data;
     } catch (err) {
@@ -241,7 +269,7 @@ export const AppProvider = ({ children }) => {
 
   const deleteRepair = async (id) => {
     try {
-      await axios.delete(`${API_URL}/repairs/${id}`);
+      await api.delete(`/repairs/${id}`);
       setRepairs(prev => prev.filter(r => r.id !== id));
     } catch (err) {
       setError('Помилка видалення ремонту');
@@ -262,9 +290,14 @@ export const AppProvider = ({ children }) => {
     loading,
     error,
     currentUser,
+    setCurrentUser,
     loadingSoftware,
     errorSoftware,
     fetchData,
+    fetchSoftwareForWorkstation,
+    addSoftwareToWorkstation,
+    updateInstalledSoftware,
+    deleteInstalledSoftware,
     addWorkstation,
     updateWorkstation,
     deleteWorkstation,
@@ -277,10 +310,6 @@ export const AppProvider = ({ children }) => {
     addRepair,
     updateRepair,
     deleteRepair,
-    fetchSoftwareForWorkstation,
-    addSoftwareToWorkstation,
-    updateInstalledSoftware,
-    deleteInstalledSoftware,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

@@ -97,6 +97,39 @@ app.post('/api/workstations', async (req, res) => {
   if (!inventory_number || !os_name || !grif) {
     return res.status(400).json({ error: 'Inventory number, OS name and grif are required' });
   }
+
+  // Перевірка IP-адреси для грифів вище ДСК
+  if (ip_address && !['ДСК', 'Відкрито'].includes(grif)) {
+    return res.status(400).json({ error: 'IP-адреса може бути вказана тільки для грифів ДСК та Відкрито' });
+  }
+
+  // Перевірка формату IP-адреси
+  if (ip_address) {
+    const ipRegex = /^([0-9]{1,3}\.){3}[0-9]{1,3}$/;
+    if (!ipRegex.test(ip_address)) {
+      return res.status(400).json({ error: 'Некоректний формат IP-адреси' });
+    }
+    const octets = ip_address.split('.').map(Number);
+    if (octets.some(octet => octet < 0 || octet > 255)) {
+      return res.status(400).json({ error: 'IP-адреса повинна містити числа від 0 до 255' });
+    }
+  }
+
+  // Перевірка формату MAC-адреси
+  if (mac_address) {
+    const macRegex = /^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$/;
+    if (!macRegex.test(mac_address)) {
+      return res.status(400).json({ error: 'Некоректний формат MAC-адреси' });
+    }
+  }
+
+  // Перевірка відповідності відділу відповідальної особи
+  if (responsible_id && department_id) {
+    const responsible = await getOne('SELECT department_id FROM users WHERE id = ?', [responsible_id]);
+    if (!responsible || responsible.department_id !== department_id) {
+      return res.status(400).json({ error: 'Відповідальна особа повинна належати до того ж відділу, що і робоча станція' });
+    }
+  }
   
   try {
     const result = await run(
@@ -135,7 +168,13 @@ app.post('/api/workstations', async (req, res) => {
     res.status(201).json(newWorkstation);
   } catch (error) {
     console.error('Error creating workstation:', error);
-    res.status(500).json({ error: 'Internal server error creating workstation' });
+    if (error.message.includes('check_ip_grif')) {
+      res.status(400).json({ error: 'IP-адреса може бути вказана тільки для грифів ДСК та Відкрито' });
+    } else if (error.message.includes('check_responsible_department')) {
+      res.status(400).json({ error: 'Відповідальна особа повинна належати до того ж відділу, що і робоча станція' });
+    } else {
+      res.status(500).json({ error: 'Internal server error creating workstation' });
+    }
   }
 });
 
@@ -162,6 +201,39 @@ app.put('/api/workstations/:id', async (req, res) => {
   
   if (!inventory_number || !os_name || !grif) {
     return res.status(400).json({ error: 'Inventory number, OS name and grif are required' });
+  }
+
+  // Перевірка IP-адреси для грифів вище ДСК
+  if (ip_address && !['ДСК', 'Відкрито'].includes(grif)) {
+    return res.status(400).json({ error: 'IP-адреса може бути вказана тільки для грифів ДСК та Відкрито' });
+  }
+
+  // Перевірка формату IP-адреси
+  if (ip_address) {
+    const ipRegex = /^([0-9]{1,3}\.){3}[0-9]{1,3}$/;
+    if (!ipRegex.test(ip_address)) {
+      return res.status(400).json({ error: 'Некоректний формат IP-адреси' });
+    }
+    const octets = ip_address.split('.').map(Number);
+    if (octets.some(octet => octet < 0 || octet > 255)) {
+      return res.status(400).json({ error: 'IP-адреса повинна містити числа від 0 до 255' });
+    }
+  }
+
+  // Перевірка формату MAC-адреси
+  if (mac_address) {
+    const macRegex = /^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$/;
+    if (!macRegex.test(mac_address)) {
+      return res.status(400).json({ error: 'Некоректний формат MAC-адреси' });
+    }
+  }
+
+  // Перевірка відповідності відділу відповідальної особи
+  if (responsible_id && department_id) {
+    const responsible = await getOne('SELECT department_id FROM users WHERE id = ?', [responsible_id]);
+    if (!responsible || responsible.department_id !== department_id) {
+      return res.status(400).json({ error: 'Відповідальна особа повинна належати до того ж відділу, що і робоча станція' });
+    }
   }
   
   try {
@@ -207,7 +279,13 @@ app.put('/api/workstations/:id', async (req, res) => {
     res.json(updatedWorkstation);
   } catch (error) {
     console.error('Error updating workstation:', error);
-    res.status(500).json({ error: 'Internal server error updating workstation' });
+    if (error.message.includes('check_ip_grif')) {
+      res.status(400).json({ error: 'IP-адреса може бути вказана тільки для грифів ДСК та Відкрито' });
+    } else if (error.message.includes('check_responsible_department')) {
+      res.status(400).json({ error: 'Відповідальна особа повинна належати до того ж відділу, що і робоча станція' });
+    } else {
+      res.status(500).json({ error: 'Internal server error updating workstation' });
+    }
   }
 });
 
@@ -251,83 +329,181 @@ app.get('/api/workstationstatuses', async (req, res) => {
 // USERS API
 app.get('/api/users', async (req, res) => {
   try {
-    const users = await query('SELECT id, username, full_name, role FROM users'); // Не повертаємо паролі
+    // Перевіряємо роль користувача (припускаємо, що роль передається в заголовку)
+    const userRole = req.headers['user-role'];
+    if (userRole !== 'admin') {
+      return res.status(403).json({ error: 'Доступ заборонено. Ця сторінка доступна тільки для адміністраторів.' });
+    }
+
+    const users = await query(`
+      SELECT u.id, u.username, u.full_name, u.role, 
+             d.id as department_id, d.name as department_name
+      FROM users u
+      LEFT JOIN departments d ON u.department_id = d.id
+    `);
     res.json(users);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-app.post('/api/users', async (req, res) => {
-  const { username, password, full_name, role } = req.body;
-  if (!username || !password) {
-    return res.status(400).json({ error: 'Username and password are required' });
+// Get departments (for user creation/editing)
+app.get('/api/departments', async (req, res) => {
+  try {
+    const departments = await query('SELECT id, name FROM departments ORDER BY name');
+    res.json(departments);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Create new department
+app.post('/api/departments', async (req, res) => {
+  const { name, description } = req.body;
+  if (!name) {
+    return res.status(400).json({ error: 'Назва відділу обов\'язкова' });
   }
   try {
+    const result = await run(
+      'INSERT INTO departments (name, description) VALUES (?, ?)',
+      [name, description || '']
+    );
+    const newDepartment = await getOne('SELECT * FROM departments WHERE id = ?', [result.lastInsertRowid]);
+    res.status(201).json(newDepartment);
+  } catch (error) {
+    if (error.message.includes('UNIQUE constraint failed')) {
+      return res.status(409).json({ error: 'Відділ з такою назвою вже існує' });
+    }
+    res.status(500).json({ error: 'Помилка при створенні відділу' });
+  }
+});
+
+app.post('/api/users', async (req, res) => {
+  const { username, password, full_name, role, department_id, department_name } = req.body;
+  
+  // Перевіряємо роль користувача, який створює
+  const userRole = req.headers['user-role'];
+  if (userRole !== 'admin') {
+    return res.status(403).json({ error: 'Доступ заборонено. Тільки адміністратор може створювати користувачів.' });
+  }
+
+  if (!username || !password || !full_name) {
+    return res.status(400).json({ error: 'Логін, пароль та ПІБ обов\'язкові' });
+  }
+
+  try {
+    let finalDepartmentId = department_id;
+
+    // Якщо вказано нову назву відділу, створюємо його
+    if (!department_id && department_name) {
+      const newDepartmentResult = await run(
+        'INSERT INTO departments (name) VALUES (?)',
+        [department_name]
+      );
+      finalDepartmentId = newDepartmentResult.lastInsertRowid;
+    }
+
     const hashedPassword = await bcrypt.hash(password, 10);
     const result = await run(
-      'INSERT INTO users (username, password, full_name, role) VALUES (?, ?, ?, ?)',
-      [username, hashedPassword, full_name, role || 'user']
+      'INSERT INTO users (username, password, full_name, role, department_id) VALUES (?, ?, ?, ?, ?)',
+      [username, hashedPassword, full_name, role || 'user', finalDepartmentId]
     );
-    const newUser = await getOne('SELECT id, username, full_name, role FROM users WHERE id = ?', [result.lastInsertRowid]);
+
+    const newUser = await getOne(`
+      SELECT u.id, u.username, u.full_name, u.role, 
+             d.id as department_id, d.name as department_name
+      FROM users u
+      LEFT JOIN departments d ON u.department_id = d.id
+      WHERE u.id = ?
+    `, [result.lastInsertRowid]);
+
     res.status(201).json(newUser);
   } catch (error) {
     console.error('Error creating user:', error);
     if (error.message.includes('UNIQUE constraint failed: users.username')) {
-        return res.status(409).json({ error: 'Username already exists.' });
+      return res.status(409).json({ error: 'Користувач з таким логіном вже існує' });
     }
-    res.status(500).json({ error: 'Internal server error creating user' });
+    res.status(500).json({ error: 'Помилка при створенні користувача' });
   }
 });
 
 app.put('/api/users/:id', async (req, res) => {
   const { id } = req.params;
-  const { username, password, full_name, role } = req.body;
+  const { username, password, full_name, role, department_id, department_name } = req.body;
 
-  if (!username && !password && !full_name && !role) {
-    return res.status(400).json({ error: 'No fields provided for update.' });
-  }
-
-  let fieldsToUpdate = [];
-  let values = [];
-
-  if (username) {
-    fieldsToUpdate.push('username = ?');
-    values.push(username);
-  }
-  if (full_name) {
-    fieldsToUpdate.push('full_name = ?');
-    values.push(full_name);
-  }
-  if (role) {
-    fieldsToUpdate.push('role = ?');
-    values.push(role);
-  }
-  if (password) {
-    const hashedPassword = await bcrypt.hash(password, 10);
-    fieldsToUpdate.push('password = ?');
-    values.push(hashedPassword);
-  }
-  
-  if (fieldsToUpdate.length === 0) {
-    return res.status(400).json({ error: 'Nothing to update or invalid fields.' });
+  // Перевіряємо роль користувача, який редагує
+  const userRole = req.headers['user-role'];
+  if (userRole !== 'admin' && userRole !== 'editor') {
+    return res.status(403).json({ error: 'Доступ заборонено. Ви не маєте прав на редагування користувачів.' });
   }
 
-  values.push(id); // For WHERE id = ?
+  // Звичайний користувач не може змінювати дані
+  if (userRole === 'user') {
+    return res.status(403).json({ error: 'Доступ заборонено. Ви не маєте прав на редагування.' });
+  }
 
   try {
-    await run(`UPDATE users SET ${fieldsToUpdate.join(', ')} WHERE id = ?`, values);
-    const updatedUser = await getOne('SELECT id, username, full_name, role FROM users WHERE id = ?', [id]);
+    let finalDepartmentId = department_id;
+
+    // Якщо вказано нову назву відділу, створюємо його
+    if (!department_id && department_name) {
+      const newDepartmentResult = await run(
+        'INSERT INTO departments (name) VALUES (?)',
+        [department_name]
+      );
+      finalDepartmentId = newDepartmentResult.lastInsertRowid;
+    }
+
+    let updates = [];
+    let values = [];
+
+    if (username) {
+      updates.push('username = ?');
+      values.push(username);
+    }
+    if (full_name) {
+      updates.push('full_name = ?');
+      values.push(full_name);
+    }
+    if (role && userRole === 'admin') { // Тільки адмін може змінювати ролі
+      updates.push('role = ?');
+      values.push(role);
+    }
+    if (finalDepartmentId) {
+      updates.push('department_id = ?');
+      values.push(finalDepartmentId);
+    }
+    if (password) {
+      const hashedPassword = await bcrypt.hash(password, 10);
+      updates.push('password = ?');
+      values.push(hashedPassword);
+    }
+
+    if (updates.length === 0) {
+      return res.status(400).json({ error: 'Не вказано даних для оновлення' });
+    }
+
+    values.push(id);
+    await run(`UPDATE users SET ${updates.join(', ')} WHERE id = ?`, values);
+
+    const updatedUser = await getOne(`
+      SELECT u.id, u.username, u.full_name, u.role, 
+             d.id as department_id, d.name as department_name
+      FROM users u
+      LEFT JOIN departments d ON u.department_id = d.id
+      WHERE u.id = ?
+    `, [id]);
+
     if (!updatedUser) {
-        return res.status(404).json({ error: 'User not found' });
+      return res.status(404).json({ error: 'Користувача не знайдено' });
     }
     res.json(updatedUser);
   } catch (error) {
     console.error('Error updating user:', error);
     if (error.message.includes('UNIQUE constraint failed: users.username')) {
-        return res.status(409).json({ error: 'Username already exists for another user.' });
+      return res.status(409).json({ error: 'Користувач з таким логіном вже існує' });
     }
-    res.status(500).json({ error: 'Internal server error updating user' });
+    res.status(500).json({ error: 'Помилка при оновленні користувача' });
   }
 });
 
@@ -458,16 +634,6 @@ app.get('/api/workstations/:id/software', async (req, res) => {
       ORDER BY s.installed_date DESC
     `, [id]);
     res.json(software);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// DEPARTMENTS API
-app.get('/api/departments', async (req, res) => {
-  try {
-    const departments = await query('SELECT * FROM departments');
-    res.json(departments);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

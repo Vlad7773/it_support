@@ -16,18 +16,52 @@ CREATE TABLE IF NOT EXISTS users (
     password TEXT NOT NULL,
     full_name TEXT NOT NULL,
     email TEXT UNIQUE,
-    role TEXT NOT NULL CHECK(role IN ('admin', 'user')),
+    role TEXT NOT NULL CHECK(role IN ('admin', 'editor', 'user')) DEFAULT 'user',
     department_id INTEGER REFERENCES departments(id),
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Функція для валідації IP-адреси
+CREATE TABLE IF NOT EXISTS temp_functions (
+    func TEXT
+);
+INSERT INTO temp_functions (func) VALUES ('
+    CREATE FUNCTION validate_ip(ip TEXT) 
+    RETURNS BOOLEAN 
+    BEGIN
+        RETURN ip REGEXP ''^([0-9]{1,3}\.){3}[0-9]{1,3}$'' 
+            AND NOT EXISTS (
+                SELECT value 
+                FROM (
+                    SELECT CAST(value AS INTEGER) AS value 
+                    FROM json_each(''['' || REPLACE(ip, ''.'', '','') || '']'')
+                ) 
+                WHERE value > 255
+            );
+    END
+');
+
 -- Workstations table (розширена схема відповідно до дизайну)
 CREATE TABLE IF NOT EXISTS workstations (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     inventory_number TEXT UNIQUE NOT NULL,
-    ip_address TEXT,
-    mac_address TEXT,
+    ip_address TEXT CHECK(
+        (ip_address IS NULL) OR 
+        (ip_address REGEXP '^([0-9]{1,3}\.){3}[0-9]{1,3}$' AND 
+         NOT EXISTS (
+            SELECT value 
+            FROM (
+                SELECT CAST(value AS INTEGER) AS value 
+                FROM json_each('[' || REPLACE(ip_address, '.', ',') || ']')
+            ) 
+            WHERE value > 255
+        ))
+    ),
+    mac_address TEXT CHECK(
+        mac_address IS NULL OR 
+        mac_address REGEXP '^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$'
+    ),
     grif TEXT NOT NULL CHECK(grif IN ('Особливої важливості', 'Цілком таємно', 'Таємно', 'ДСК', 'Відкрито')) DEFAULT 'ДСК',
     os_name TEXT NOT NULL,
     department_id INTEGER REFERENCES departments(id),
@@ -44,8 +78,39 @@ CREATE TABLE IF NOT EXISTS workstations (
     status TEXT NOT NULL CHECK(status IN ('operational', 'maintenance', 'repair', 'decommissioned')) DEFAULT 'operational',
     registration_date DATE DEFAULT (date('now')),
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT check_ip_grif CHECK(
+        (grif IN ('ДСК', 'Відкрито')) OR 
+        (ip_address IS NULL)
+    ),
+    CONSTRAINT check_responsible_department FOREIGN KEY (responsible_id, department_id) 
+        REFERENCES users (id, department_id)
 );
+
+-- Тригер для перевірки відповідності відділу відповідальної особи
+CREATE TRIGGER IF NOT EXISTS check_responsible_department_trigger
+BEFORE INSERT ON workstations
+FOR EACH ROW
+BEGIN
+    SELECT CASE
+        WHEN NEW.responsible_id IS NOT NULL AND NEW.department_id IS NOT NULL AND
+             NOT EXISTS (
+                 SELECT 1 FROM users 
+                 WHERE id = NEW.responsible_id 
+                 AND department_id = NEW.department_id
+             )
+        THEN RAISE(ABORT, 'Відповідальна особа повинна належати до того ж відділу, що і робоча станція')
+    END;
+END;
+
+-- Тригер для оновлення часу змін
+CREATE TRIGGER IF NOT EXISTS update_workstation_timestamp
+AFTER UPDATE ON workstations
+BEGIN
+    UPDATE workstations 
+    SET updated_at = CURRENT_TIMESTAMP 
+    WHERE id = OLD.id;
+END;
 
 -- Tickets table (виправлено відповідно до коду сервера)
 CREATE TABLE IF NOT EXISTS tickets (
@@ -53,11 +118,32 @@ CREATE TABLE IF NOT EXISTS tickets (
     user_id INTEGER REFERENCES users(id),
     workstation_id INTEGER REFERENCES workstations(id),
     title TEXT NOT NULL,
-    type TEXT NOT NULL CHECK(type IN ('printer_issue', 'mouse_issue', 'keyboard_issue', 'monitor_issue', 'system_startup', 'network_issue', 'software_issue', 'hardware_issue', 'other')) DEFAULT 'other',
+    type TEXT NOT NULL CHECK(type IN (
+        'printer_issue',     -- Проблеми з принтером
+        'mouse_issue',       -- Проблеми з мишкою
+        'keyboard_issue',    -- Проблеми з клавіатурою
+        'monitor_issue',     -- Проблеми з монітором
+        'system_startup',    -- Проблеми із запуском системи
+        'network_issue',     -- Проблеми з мережею
+        'software_issue',    -- Проблеми з ПЗ
+        'hardware_issue',    -- Проблеми з апаратним забезпеченням
+        'maintenance',       -- Планове обслуговування
+        'other'             -- Інше
+    )) DEFAULT 'other',
     description TEXT NOT NULL,
-    status TEXT NOT NULL CHECK(status IN ('open', 'in_progress', 'resolved', 'closed')) DEFAULT 'open',
+    status TEXT NOT NULL CHECK(status IN (
+        'new',              -- Нова заявка
+        'assigned',         -- Призначено виконавця
+        'in_progress',      -- В роботі
+        'need_repair',      -- Потребує ремонту
+        'repair_in_progress', -- Ремонтується
+        'resolved',         -- Вирішено
+        'closed'            -- Закрито
+    )) DEFAULT 'new',
     priority TEXT NOT NULL CHECK(priority IN ('low', 'medium', 'high', 'critical')) DEFAULT 'medium',
     assigned_to INTEGER REFERENCES users(id),
+    resolution_notes TEXT,   -- Примітки щодо вирішення
+    resolution_date DATETIME,-- Дата вирішення
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
@@ -65,15 +151,57 @@ CREATE TABLE IF NOT EXISTS tickets (
 -- Repairs table (виправлено відповідно до коду сервера)
 CREATE TABLE IF NOT EXISTS repairs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    ticket_id INTEGER REFERENCES tickets(id), -- Зв'язок з заявкою
     workstation_id INTEGER REFERENCES workstations(id),
     technician_id INTEGER REFERENCES users(id),
+    repair_type TEXT NOT NULL CHECK(repair_type IN (
+        'hardware_replacement', -- Заміна комплектуючих
+        'hardware_repair',     -- Ремонт комплектуючих
+        'maintenance',         -- Технічне обслуговування
+        'upgrade',            -- Оновлення компонентів
+        'other'               -- Інше
+    )) DEFAULT 'other',
     description TEXT NOT NULL,
-    repair_date DATE,
-    cost DECIMAL(10,2),
-    status TEXT NOT NULL CHECK(status IN ('pending', 'in_progress', 'completed', 'cancelled')) DEFAULT 'pending',
+    diagnosis TEXT,           -- Діагностика
+    parts_used TEXT,         -- Використані запчастини
+    repair_date DATE,        -- Планова дата ремонту
+    completion_date DATE,    -- Фактична дата завершення
+    cost DECIMAL(10,2),      -- Вартість ремонту
+    warranty_period TEXT,    -- Гарантійний термін
+    status TEXT NOT NULL CHECK(status IN (
+        'pending',           -- Очікує ремонту
+        'diagnosed',         -- Продіагностовано
+        'parts_ordered',     -- Замовлено запчастини
+        'in_progress',       -- В процесі ремонту
+        'testing',          -- Тестування після ремонту
+        'completed',         -- Завершено
+        'cancelled'          -- Скасовано
+    )) DEFAULT 'pending',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Тригер для оновлення статусу заявки при створенні ремонту
+CREATE TRIGGER IF NOT EXISTS update_ticket_status_on_repair
+AFTER INSERT ON repairs
+BEGIN
+    UPDATE tickets 
+    SET status = 'repair_in_progress',
+        updated_at = CURRENT_TIMESTAMP
+    WHERE id = NEW.ticket_id;
+END;
+
+-- Тригер для оновлення статусу заявки при завершенні ремонту
+CREATE TRIGGER IF NOT EXISTS update_ticket_status_on_repair_complete
+AFTER UPDATE ON repairs
+WHEN NEW.status = 'completed' AND OLD.status != 'completed'
+BEGIN
+    UPDATE tickets 
+    SET status = 'resolved',
+        resolution_date = CURRENT_TIMESTAMP,
+        updated_at = CURRENT_TIMESTAMP
+    WHERE id = NEW.ticket_id;
+END;
 
 -- Software table (опціональна)
 CREATE TABLE IF NOT EXISTS software (
@@ -101,21 +229,21 @@ INSERT OR IGNORE INTO departments (name, description) VALUES
 ('Кадри', 'Відділ кадрів');
 
 -- Додаємо користувачів (пароль буде замінений в init-db.js)
-INSERT OR IGNORE INTO users (username, password, full_name, email, role, department_id) VALUES
-('admin', 'temp_password', 'Admin User', 'admin@company.com', 'admin', 1),
-('petrov.petro', 'temp_password', 'Петров Петро Петрович', 'petrov@company.com', 'user', 2),
-('sidorova.maria', 'temp_password', 'Сидорова Марія Іванівна', 'sidorova@company.com', 'user', 3),
-('kovalenko.olena', 'temp_password', 'Коваленко Олена Василівна', 'kovalenko@company.com', 'user', 4),
-('melnik.oleg', 'temp_password', 'Мельник Олег Андрійович', 'melnik@company.com', 'user', 5),
-('ivanov.ivan', 'temp_password', 'Іванов Іван Іванович', 'ivanov@company.com', 'user', 6);
+INSERT OR IGNORE INTO users (username, password, full_name, role, department_id) VALUES
+('admin', 'temp_password', 'Головний Адміністратор', 'admin', 1),
+('editor.it', 'temp_password', 'Петров Петро Петрович', 'editor', 2),
+('user.security', 'temp_password', 'Сидорова Марія Іванівна', 'user', 3),
+('user.admin', 'temp_password', 'Коваленко Олена Василівна', 'user', 4),
+('user.dsk', 'temp_password', 'Мельник Олег Андрійович', 'user', 5),
+('user.hr', 'temp_password', 'Іванов Іван Іванович', 'user', 6);
 
 -- Додаємо робочі станції з розширеними даними
 INSERT OR IGNORE INTO workstations (inventory_number, ip_address, mac_address, grif, os_name, department_id, responsible_id, contacts, notes, processor, ram, storage, monitor, network, type, status, registration_date) VALUES
-('АРМ-001', '192.168.1.101', '00:1A:2B:3C:4D:01', 'Особливої важливості', 'Windows 11 Pro', 2, 2, '+380503456790', '', 'Intel Core i7-12700', '16 ГБ DDR4', 'SSD 512 ГБ', 'Dell 24" 1920x1080', 'Gigabit Ethernet', 'Десктоп', 'operational', '2024-01-01'),
-('АРМ-002', '192.168.1.102', '00:1A:2B:3C:4D:02', 'Цілком таємно', 'Windows 10 Pro', 3, 3, '+380503456791', '', 'AMD Ryzen 5 5600X', '32 ГБ DDR4', 'SSD 1 ТБ', 'Samsung 27" 2560x1440', 'Wi-Fi + Ethernet', 'Десктоп', 'operational', '2024-01-02'),
-('АРМ-003', '192.168.1.103', '00:1A:2B:3C:4D:03', 'Таємно', 'Windows 11 Pro', 4, 4, '+380503456792', 'Примітка для АРМ-003', 'Intel Core i5-11400', '8 ГБ DDR4', 'HDD 1 ТБ + SSD 256 ГБ', 'LG 22" 1920x1080', 'Ethernet', 'Десктоп', 'maintenance', '2024-01-03'),
+('АРМ-001', NULL, '00:1A:2B:3C:4D:01', 'Особливої важливості', 'Windows 11 Pro', 2, 2, '+380503456790', '', 'Intel Core i7-12700', '16 ГБ DDR4', 'SSD 512 ГБ', 'Dell 24" 1920x1080', 'Gigabit Ethernet', 'Десктоп', 'operational', '2024-01-01'),
+('АРМ-002', NULL, '00:1A:2B:3C:4D:02', 'Цілком таємно', 'Windows 10 Pro', 3, 3, '+380503456791', '', 'AMD Ryzen 5 5600X', '32 ГБ DDR4', 'SSD 1 ТБ', 'Samsung 27" 2560x1440', 'Wi-Fi + Ethernet', 'Десктоп', 'operational', '2024-01-02'),
+('АРМ-003', NULL, '00:1A:2B:3C:4D:03', 'Таємно', 'Windows 11 Pro', 4, 4, '+380503456792', 'Примітка для АРМ-003', 'Intel Core i5-11400', '8 ГБ DDR4', 'HDD 1 ТБ + SSD 256 ГБ', 'LG 22" 1920x1080', 'Ethernet', 'Десктоп', 'maintenance', '2024-01-03'),
 ('АРМ-004', '192.168.1.104', '00:1A:2B:3C:4D:04', 'ДСК', 'Windows 10 Pro', 5, 5, '+380503456793', '', 'Intel Core i3-10100', '8 ГБ DDR4', 'SSD 256 ГБ', 'HP 21.5" 1920x1080', 'Ethernet', 'Десктоп', 'operational', '2024-01-04'),
-('АРМ-005', '192.168.1.105', '00:1A:2B:3C:4D:05', 'Особливої важливості', 'Ubuntu 22.04', 1, 6, '+380503456794', '', 'Intel Xeon E-2224', '64 ГБ DDR4 ECC', 'SSD 2 ТБ NVMe', 'Dual Dell 24"', '10 Gigabit Ethernet', 'Сервер', 'operational', '2024-01-05');
+('АРМ-005', NULL, '00:1A:2B:3C:4D:05', 'Особливої важливості', 'Ubuntu 22.04', 1, 1, '+380503456794', '', 'Intel Xeon E-2224', '64 ГБ DDR4 ECC', 'SSD 2 ТБ NVMe', 'Dual Dell 24"', '10 Gigabit Ethernet', 'Сервер', 'operational', '2024-01-05');
 
 -- Додаємо заявки
 INSERT OR IGNORE INTO tickets (user_id, workstation_id, title, type, description, status, priority, assigned_to) VALUES
